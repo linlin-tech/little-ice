@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Little Ice · 前端预览</title>
+  <style>
+    /* ============================================
+       Design Tokens (来自 design-system.md V1.1)
+       ============================================ */
+    :root {
+      /* Primary */
+      --primary: #7CC7FF;
+      --primary-soft: #EEF7FF;
+      --primary-strong: #2563EB;
+      --primary-tint: #E3F3FF;
+      --primary-hover: #F5F9FF;
+
+      /* Neutral */
+      --bg: #FFFFFF;
+      --bg-sidebar: #F8F9FB;
+      --bg-user-bubble: #F7F8FA;
+      --border: #EAECEF;
+      --text-primary: #1F2328;
+      --text-secondary: #6B7280;
+
+      /* Feedback */
+      --success: #16A34A;
+      --error: #DC2626;
+      --warning: #D97706;
+
+      /* Layout */
+      --sidebar-width: 240px;
+      --list-width: 320px;
+      --content-max: 720px;
+    }
+
+    /* ============================================
+       Reset & Base
+       ============================================ */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: "Noto Sans SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text-primary);
+      background: var(--bg-sidebar);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font-family: inherit; }
+
+    /* ============================================
+       App Layout (三栏)
+       ============================================ */
+    .app {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) var(--list-width) 1fr;
+      height: 100vh;
+    }
+
+    /* ============================================
+       Sidebar
+       ============================================ */
+    .sidebar {
+      background: var(--bg-sidebar);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 0;
+      border-right: 1px solid var(--border);
+    }
+    .logo {
+      padding: 0 24px 16px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .logo .star { color: var(--primary); margin-left: 2px; }
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 0 8px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-primary);
+      font-size: 14px;
+      transition: background 0.12s, color 0.12s;
+    }
+    .nav-item:hover { background: var(--primary-hover); }
+    .nav-item.active {
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+    }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .sidebar-spacer { flex: 1; }
+    .sidebar-bottom { padding: 0 8px; }
+
+    /* ============================================
+       List Panel
+       ============================================ */
+    .list-panel {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .list-toolbar {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .list-toolbar-title {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .list-item {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.12s;
+    }
+    .list-item:hover { background: var(--primary-hover); }
+    .list-item.selected {
+      background: var(--primary-soft);
+      border-left: 3px solid var(--primary);
+      padding-left: 13px;
+    }
+    .list-item-title {
+      font-size: 14px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .list-item-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .list-item-actions {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .list-item:hover .list-item-actions { opacity: 1; }
+    .icon-btn {
+      width: 28px; height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon-btn-edit:hover { background: var(--primary-hover); color: var(--primary-strong); }
+    .icon-btn-delete:hover { background: var(--primary-hover); color: var(--error); }
+    .icon-btn svg { width: 14px; height: 14px; }
+
+    /* V1.4: Chat Header 右侧收藏数徽章 */
+    .favorite-count-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+      font-size: 12px;
+      font-weight: 500;
+      margin-right: 4px;
+    }
+    .favorite-count-badge svg { width: 12px; height: 12px; }
+
+    /* ============================================
+       Content Panel
+       ============================================ */
+    .content-panel {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .content-inner {
+      max-width: var(--content-max);
+      width: 100%;
+      margin: 0 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .page { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .page.active { display: flex; }
+
+    /* ============================================
+       Chat Page
+       ============================================ */
+    .chat-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .chat-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .chat-title {
+      font-size: 15px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chat-header-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message { display: flex; flex-direction: column; max-width: 70%; }
+    .message.user { align-self: flex-end; }
+    .message.assistant { align-self: flex-start; max-width: 100%; }
+    .message.system { align-self: center; max-width: 100%; }
+
+    .message-bubble-user {
+      background: var(--bg-user-bubble);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.9;
+    }
+    .message-content-ai {
+      font-size: 15px;
+      line-height: 1.9;
+      color: var(--text-primary);
+    }
+    .message-content-ai p { margin-bottom: 12px; }
+    .message-content-ai p:last-child { margin-bottom: 0; }
+    .message-content-ai h1, .message-content-ai h2, .message-content-ai h3 {
+      font-weight: 600;
+      margin: 20px 0 12px;
+    }
+    .message-content-ai h1 { font-size: 20px; }
+    .message-content-ai h2 { font-size: 17px; }
+    .message-content-ai h3 { font-size: 15px; margin-top: 16px; }
+    .message-content-ai strong { font-weight: 600; }
+    .message-content-ai em { font-style: italic; color: var(--text-secondary); }
+    .message-content-ai code:not(pre code) {
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 13px;
+    }
+    .message-content-ai pre {
+      background: var(--bg-sidebar);
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 12px 0;
+      border: 1px solid var(--border);
+    }
+    .message-content-ai pre code {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-primary);
+    }
+    .message-content-ai ul, .message-content-ai ol {
+      margin: 8px 0 12px 24px;
+    }
+    .message-content-ai li { margin-bottom: 4px; }
+    .message-content-ai blockquote {
+      border-left: 3px solid var(--primary);
+      padding-left: 12px;
+      color: var(--text-secondary);
+      margin: 12px 0;
+    }
+    .message-content-ai a {
+      color: var(--primary-strong);
+      text-decoration: underline;
+    }
+
+    /* AI Message Action Row */
+    .ai-message-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ai-message-actions {
+      display: flex;
+      gap: 2px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .message.assistant:hover .ai-message-actions { opacity: 1; }
+
+    /* Loading Dots */
+    .loading-dots { display: inline-flex; gap: 3px; align-items: center; padding: 4px 0; }
+    .loading-dots span {
+      width: 5px; height: 5px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    /* Cursor Blink */
+    .cursor-blink {
+      display: inline-block;
+      width: 2px;
+      height: 16px;
+      background: var(--primary);
+      animation: blink 1s infinite;
+      vertical-align: text-bottom;
+      margin-left: 2px;
+    }
+    @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+    /* Stop Badge */
+    .stopped-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Chat Input */
+    .chat-input-area {
+      padding: 16px 24px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .input-wrapper {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: var(--bg);
+    }
+    .input-wrapper:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(124, 199, 255, 0.15);
+    }
+    .input-wrapper textarea {
+      width: 100%;
+      border: none;
+      outline: none;
+      resize: none;
+      font-family: inherit;
+      font-size: 15px;
+      line-height: 1.6;
+      background: transparent;
+      min-height: 28px;
+      max-height: 160px;
+      color: var(--text-primary);
+    }
+    .input-wrapper textarea::placeholder { color: var(--text-secondary); }
+    .input-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .input-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .input-hint kbd {
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 11px;
+      font-family: inherit;
+    }
+
+    /* ============================================
+       Buttons
+       ============================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+    }
+    .btn svg { width: 15px; height: 15px; }
+    .btn-primary { background: var(--primary-strong); color: #fff; }
+    .btn-primary:hover { background: #1D4FD8; }
+    .btn-primary:disabled { background: var(--border); color: var(--text-secondary); cursor: not-allowed; }
+    .btn-soft { background: var(--primary-soft); color: var(--primary-strong); }
+    .btn-soft:hover { background: var(--primary-tint); }
+    .btn-ghost { background: transparent; color: var(--text-secondary); }
+    .btn-ghost:hover { background: var(--primary-hover); color: var(--text-primary); }
+    .btn-destructive { background: transparent; color: var(--error); border: 1px solid var(--error); }
+    .btn-destructive:hover { background: #FEF2F2; }
+    .btn-sm { padding: 5px 10px; font-size: 13px; }
+
+    /* Inline Message (错误提示) */
+    .inline-message {
+      border-left: 3px solid var(--error);
+      color: var(--error);
+      font-size: 12px;
+      padding: 6px 0 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 8px 0;
+    }
+    .inline-message svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .inline-message.success { border-left-color: var(--success); color: var(--success); }
+
+    /* ============================================
+       Favorite Page
+       ============================================ */
+    .favorite-detail {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      overflow: hidden;
+    }
+    .favorite-title-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      font-size: 20px;
+      font-weight: 600;
+      padding: 8px 4px;
+      border-bottom: 1px solid transparent;
+      background: transparent;
+      font-family: inherit;
+      color: var(--text-primary);
+    }
+    .favorite-title-input:hover { border-bottom-color: var(--border); }
+    .favorite-title-input:focus { border-bottom-color: var(--primary); }
+    .favorite-content {
+      flex: 1;
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      font-size: 15px;
+      line-height: 1.9;
+      resize: none;
+      font-family: inherit;
+      color: var(--text-primary);
+      background: var(--bg);
+    }
+    .favorite-content:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124, 199, 255, 0.15); }
+    .favorite-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+    }
+    .save-status {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .save-status .check { color: var(--success); }
+    .save-status .dot { width: 4px; height: 4px; background: var(--text-secondary); border-radius: 50%; }
+    .favorite-footer-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ============================================
+       Settings Page
+       ============================================ */
+    .settings-content {
+      padding: 32px 24px;
+      overflow-y: auto;
+    }
+    .settings-header {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .settings-section {
+      margin-bottom: 32px;
+      max-width: 560px;
+    }
+    .settings-section h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .settings-section .desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .api-key-input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      letter-spacing: 0.05em;
+      outline: none;
+      background: var(--bg);
+      color: var(--text-primary);
+    }
+    .api-key-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(124, 199, 255, 0.15);
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .status-badge.configured { color: var(--success); }
+    .status-badge.not-configured { color: var(--error); }
+    .settings-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 32px 0;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #D7DDE5; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #B0B9C2; }
+    * { scrollbar-width: thin; scrollbar-color: #D7DDE5 transparent; }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============================ Sidebar ============================ -->
+    <aside class="sidebar">
+      <div class="logo">小冰<span class="star">✦</span></div>
+
+      <nav class="nav" style="margin-top: 8px;">
+        <a class="nav-item active" data-page="chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>对话</span>
+        </a>
+        <a class="nav-item" data-page="favorite">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          <span>收藏</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <nav class="nav sidebar-bottom">
+        <a class="nav-item" data-page="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>设置</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ============================ List Panel ============================ -->
+    <div class="list-panel" id="listPanel">
+      <!-- 由 JS 渲染 -->
+    </div>
+
+    <!-- ============================ Content Panel ============================ -->
+    <main class="content-panel" id="contentPanel">
+      <!-- 由 JS 渲染 -->
+    </main>
+  </div>
+
+  <script>
+    /* ============================================
+       Mock Data
+       ============================================ */
+    const mockChats = [
+      { id: 'c1', title: 'Little Ice MVP 需求分析', updatedAt: '刚刚', selected: true },
+      { id: 'c2', title: 'Rust 异步编程学习笔记', updatedAt: '1 小时前' },
+      { id: 'c3', title: '周末京都旅行计划', updatedAt: '昨天' },
+      { id: 'c4', title: 'AI Agent 框架调研', updatedAt: '3 天前' },
+      { id: 'c5', title: '读书笔记：人类简史', updatedAt: '上周' },
+      { id: 'c6', title: 'Tauri 2 升级踩坑记录', updatedAt: '2 周前' },
+    ];
+
+    const mockFavorites = [
+      { id: 'f1', title: 'DeepSeek 流式输出集成要点', updatedAt: '2 小时前', selected: true, dirty: false, sourceChatId: 'c1',
+        content: '核心步骤：\n\n1. Rust 端使用 reqwest 发送 SSE 请求到 DeepSeek API\n2. 逐 chunk 读取响应流，提取 delta.content\n3. 通过 Tauri Event emit ai-stream-chunk 到前端\n4. 前端 listen 事件，追加到 assistantMessage.content\n5. 流结束时 emit ai-stream-end，Rust 端将完整内容写入 SQLite\n\n关键点：\n- 使用 eventsource-client 或手写 futures::Stream\n- 错误处理：网络断开、API Key 失效、超时（30s）\n- 停止生成：维护一个 chatId -> CancellationToken 映射' },
+      { id: 'f2', title: 'Zustand persist 用法', updatedAt: '昨天', dirty: false, sourceChatId: 'c1',
+        content: '持久化聊天草稿的标准模式：\n\nimport { create } from "zustand";\nimport { persist, createJSONStorage } from "zustand/middleware";\n\nconst useDraftStore = create(\n  persist(\n    (set) => ({\n      draft: "",\n      setDraft: (s) => set({ draft: s }),\n      clearDraft: () => set({ draft: "" }),\n    }),\n    {\n      name: "little-ice-chat-draft",\n      storage: createJSONStorage(() => localStorage),\n    }\n  )\n);' },
+      { id: 'f3', title: 'MVP 范围定义 (会议纪要)', updatedAt: '3 天前', dirty: true, sourceChatId: 'c4',
+        content: '会议结论：\n\n包含：Chat / Favorite / Settings 三个核心模块\n不包含：Project、Folder、Search、Tag、Category、知识图谱、Workspace、多窗口\n\n系统级（非模块）：状态缓存、自动保存、AI 流式、错误处理' },
+      { id: 'f4', title: 'shadcn/ui 在 Tauri 中的集成', updatedAt: '上周', dirty: false, sourceChatId: 'c4',
+        content: '步骤：\n1. npx shadcn@latest init\n2. 选择 New York 风格 + Slate 基础色\n3. 修改 globals.css 中的 CSS 变量对齐 Little Ice 配色\n4. 按需添加组件：Button、Input、Dialog、Toast\n5. 不要引入完整组件库，按需复制源码' },
+      { id: 'f5', title: '产品定位：金句', updatedAt: '2 周前', dirty: false, sourceChatId: null,
+        content: '"帮用户从 AI 对话中沉淀出真正值得留下的东西。"\n\n核心闭环：Chat → Favorite → Knowledge Collection\n\n差异化：\n- 不是 ChatGPT 替代品（已经有太多）\n- 是"私人知识沉淀器"\n- 像 Obsidian 但更轻、更聚焦' },
+    ];
+
+    // V1.4: 恢复收藏数徽章，重新启用 getFavoriteCount
+    function getFavoriteCount(chatId) {
+      return mockFavorites.filter(f => f.sourceChatId === chatId).length;
+    }
+
+    /* ============================================
+       Renderers
+       ============================================ */
+    function renderChatList() {
+      return `
+        <div class="list-toolbar">
+          <span class="list-toolbar-title">对话 · ${mockChats.length}</span>
+          <button class="btn btn-soft btn-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>新建对话</span>
+          </button>
+        </div>
+        <div class="list">
+          ${mockChats.map(c => `
+            <div class="list-item ${c.selected ? 'selected' : ''}">
+              <div class="list-item-title">${c.title}</div>
+              <div class="list-item-meta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>${c.updatedAt}</span>
+              </div>
+              <div class="list-item-actions">
+                <button class="icon-btn icon-btn-edit" title="重命名">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                </button>
+                <button class="icon-btn icon-btn-delete" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderFavoriteList() {
+      return `
+        <div class="list-toolbar">
+          <span class="list-toolbar-title">收藏 · ${mockFavorites.length}</span>
+        </div>
+        <div class="list">
+          ${mockFavorites.map(f => `
+            <div class="list-item ${f.selected ? 'selected' : ''}">
+              <div class="list-item-title">${f.title}</div>
+              <div class="list-item-meta">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>${f.updatedAt}</span>
+                ${f.dirty ? '<span style="color: var(--text-secondary);">·</span><span>有未保存</span>' : ''}
+              </div>
+              <div class="list-item-actions">
+                <button class="icon-btn icon-btn-edit" title="重命名">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                </button>
+                <button class="icon-btn icon-btn-delete" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderSettingsList() {
+      return `
+        <div class="list-toolbar">
+          <span class="list-toolbar-title">设置</span>
+        </div>
+        <div class="list" style="padding: 16px;">
+          <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding: 8px 12px;">
+            从左侧导航选择分类
+          </div>
+        </div>
+      `;
+    }
+
+    function renderChatContent() {
+      return `
+        <div class="page active" data-page="chat">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <span class="chat-title">Little Ice MVP 需求分析</span>
+            </div>
+            <div class="chat-header-actions">
+              <!-- V1.4: 右侧只显示收藏数徽章；不显示"收藏"图标按钮和"更多"图标按钮 -->
+              <div class="favorite-count-badge" title="本 Chat 被收藏的次数">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" width="12" height="12"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <span>${getFavoriteCount('c1')}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-messages">
+            <!-- User Message -->
+            <div class="message user">
+              <div class="message-bubble-user">帮我分析一下 Little Ice 这个产品的核心用户场景</div>
+            </div>
+
+            <!-- AI Message -->
+            <div class="message assistant">
+              <div class="ai-message-row">
+                <div class="message-content-ai">
+                  <p>Little Ice 的核心用户场景可以归纳为 <strong>"对话 → 收藏 → 知识沉淀"</strong> 三步闭环：</p>
+                  <h2>1. 日常对话</h2>
+                  <p>用户在与 AI 对话时，会遇到大量值得保留的回答——比如好的解释、贴心的建议、意想不到的灵感。</p>
+                  <h2>2. 即时收藏</h2>
+                  <p>对话中一键收藏 AI 回复，不打断思路。</p>
+                  <h2>3. 长期沉淀</h2>
+                  <p>收藏的内容独立成页，可编辑、可检索、可二次利用。</p>
+                  <blockquote>关键洞察：用户不是缺 AI 工具，是缺一个把 AI 输出转化为个人资产的方式。</blockquote>
+                </div>
+                <div class="ai-message-actions">
+                  <button class="icon-btn" title="复制">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button class="icon-btn" title="收藏">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Message -->
+            <div class="message user">
+              <div class="message-bubble-user">那自动保存的间隔设多少合适？</div>
+            </div>
+
+            <!-- AI Message (with code block + streaming) -->
+            <div class="message assistant">
+              <div class="ai-message-row">
+                <div class="message-content-ai">
+                  <p>10 秒是一个比较好的平衡点。理由是：</p>
+                  <ul>
+                    <li>太短（如 1 秒）会频繁写库，影响性能</li>
+                    <li>太长（如 1 分钟）用户切换时可能丢失未保存内容</li>
+                    <li>10 秒符合"操作完成一次小停顿"的自然节奏</li>
+                  </ul>
+                  <p>核心实现：</p>
+                  <pre><code>function useFavoriteAutoSave() {
+  const { isDirty, isSaving, manualSave } = useFavoriteStore();
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (isDirty && !isSaving) {
+        manualSave();
+      }
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [isDirty, isSaving, manualSave]);
+}</code></pre>
+                </div>
+                <div class="ai-message-actions">
+                  <button class="icon-btn" title="复制">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button class="icon-btn" title="收藏">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Message -->
+            <div class="message user">
+              <div class="message-bubble-user">流式输出用 SSE 还是 WebSocket？</div>
+            </div>
+
+            <!-- AI Generating (in progress) -->
+            <div class="message assistant">
+              <div class="ai-message-row">
+                <div class="message-content-ai">
+                  <p>推荐使用 <strong>SSE</strong>，因为 DeepSeek 原生就支持 SSE 格式，集成最简单<span class="cursor-blink"></span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-input-area">
+            <div class="input-wrapper">
+              <textarea placeholder="请输入内容…" rows="1"></textarea>
+              <div class="input-actions">
+                <span class="input-hint"><kbd>Enter</kbd> 发送 · <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
+                <button class="btn btn-primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                  <span>发送</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFavoriteContent() {
+      const f = mockFavorites.find(x => x.selected);
+      return `
+        <div class="page active" data-page="favorite">
+          <div class="favorite-detail">
+            <input class="favorite-title-input" value="${f.title}" />
+
+            <textarea class="favorite-content">${f.content}</textarea>
+
+            <div class="favorite-footer">
+              <div class="save-status">
+                ${f.dirty
+                  ? '<span>有未保存的修改</span>'
+                  : '<svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"></polyline></svg><span>已保存 · 14:23</span>'}
+              </div>
+              <div class="favorite-footer-actions">
+                <!-- V5.3 变更：删除 Favorite 的按钮已移除，统一在列表 hover 区操作 -->
+                <button class="btn btn-primary btn-sm" ${f.dirty ? '' : 'disabled'}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                  <span>保存</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSettingsContent() {
+      return `
+        <div class="page active" data-page="settings">
+          <div class="settings-content">
+            <div class="settings-header">设置</div>
+
+            <div class="settings-section">
+              <h3>AI Model</h3>
+              <div class="desc">使用 DeepSeek 作为对话模型。在下方填入你的 API Key，应用重启后仍会保留。</div>
+              <input class="api-key-input" type="password" value="sk-•••••••••••••••••••••••••••••Qz7c" />
+              <div class="status-badge configured">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span>已配置</span>
+              </div>
+              <div style="margin-top: 12px;">
+                <div class="inline-message success">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>已保存 · 14:23</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-divider"></div>
+
+            <div class="settings-section">
+              <h3>Appearance</h3>
+              <div class="desc">当前主题：<strong>Light</strong>（MVP 暂不支持切换）</div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <div style="padding: 8px 12px; border: 1px solid var(--primary); border-radius: 8px; background: var(--primary-soft); color: var(--primary-strong); font-size: 13px; font-weight: 500;">Light</div>
+                <div style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 13px; cursor: not-allowed;">Dark</div>
+              </div>
+            </div>
+
+            <div class="settings-divider"></div>
+
+            <div class="settings-section">
+              <h3>关于</h3>
+              <div class="desc">Little Ice V1.0 · MVP · 2026</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* ============================================
+       Page Switching
+       ============================================ */
+    function switchPage(page) {
+      // Update nav active
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.page === page);
+      });
+
+      // Render list panel
+      const listPanel = document.getElementById('listPanel');
+      if (page === 'chat') listPanel.innerHTML = renderChatList();
+      else if (page === 'favorite') listPanel.innerHTML = renderFavoriteList();
+      else if (page === 'settings') listPanel.innerHTML = renderSettingsList();
+
+      // Render content panel
+      const contentPanel = document.getElementById('contentPanel');
+      if (page === 'chat') contentPanel.innerHTML = renderChatContent();
+      else if (page === 'favorite') contentPanel.innerHTML = renderFavoriteContent();
+      else if (page === 'settings') contentPanel.innerHTML = renderSettingsContent();
+    }
+
+    // Init
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.addEventListener('click', () => switchPage(el.dataset.page));
+    });
+    switchPage('chat');
+
+    // Auto-resize textarea
+    document.addEventListener('input', (e) => {
+      if (e.target.tagName === 'TEXTAREA') {
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+      }
+    });
+  </script>
+</body>
+</html>

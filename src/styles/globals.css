@@ -1,0 +1,346 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Little Ice · 设计系统 CSS 变量
+ *
+ * 字体：使用本地 NotoSansSC-Regular，避免系统字体 ascent/descent
+ * 不一致导致 svg 与文字垂直错位。
+ */
+@font-face {
+  font-family: "Noto Sans SC";
+  src: url("../assets/NotoSansSC-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Little Ice · 设计系统 CSS 变量
+ *
+ * 颜色/圆角全部走 HSL 通道值，由 Tailwind 的 `hsl(var(--xxx))` 消费。
+ * 严禁硬编码颜色字面量到组件里——必须用 `bg-primary` / `text-foreground` 等工具类。
+ *
+ * 参考：docs/design-system.md §23.1
+ */
+@layer base {
+  :root {
+    /* === Primary === */
+    --primary: 199 100% 78%;          /* #7CC7FF → hsl */
+    --primary-foreground: 0 0% 100%;
+
+    --primary-soft: 211 100% 96%;     /* #EEF7FF */
+    --primary-strong: 217 91% 60%;    /* #2563EB */
+    --primary-tint: 204 100% 94%;     /* #E3F3FF */
+    --primary-hover: 210 100% 98%;    /* #F5F9FF */
+
+    /* === Neutral === */
+    --background: 0 0% 100%;          /* #FFFFFF */
+    --foreground: 220 14% 18%;        /* #1F2328 */
+
+    --sidebar: 220 17% 98%;           /* #F8F9FB */
+    --user-bubble: 220 14% 97%;       /* #F7F8FA */
+
+    --border: 220 13% 92%;            /* #EAECEF */
+    --muted: 220 9% 46%;              /* #6B7280 */
+
+    /* === Feedback === */
+    --success: 142 71% 36%;           /* #16A34A */
+    --error: 0 72% 51%;               /* #DC2626 */
+    --warning: 32 95% 44%;            /* #D97706 */
+
+    /* === Radius === */
+    --radius: 0.5rem;                 /* 8px */
+  }
+
+  /* 全局基础样式 */
+  html,
+  body,
+  #root {
+    height: 100%;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: theme("fontFamily.sans");
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 滚动条：细 + 主题色（轻量） */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted));
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* 选中文本 */
+  ::selection {
+    background-color: hsl(var(--primary-tint));
+    color: hsl(var(--primary-strong));
+  }
+
+  /* ===== Markdown 渲染样式 ===== */
+  .markdown-body {
+    font-size: 15px;
+    line-height: 1.9;
+    color: hsl(var(--foreground));
+  }
+
+  .markdown-body p {
+    margin-top: 0.75em;
+    margin-bottom: 0.75em;
+  }
+
+  .markdown-body h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  .markdown-body h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-top: 1.25em;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  .markdown-body h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+  }
+
+  .markdown-body h4,
+  .markdown-body h5,
+  .markdown-body h6 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 0.75em;
+    margin-bottom: 0.5em;
+  }
+
+  .markdown-body ul,
+  .markdown-body ol {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    padding-left: 1.5em;
+  }
+
+  .markdown-body ul {
+    list-style-type: disc;
+  }
+
+  .markdown-body ol {
+    list-style-type: decimal;
+  }
+
+  .markdown-body li {
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+  }
+
+  .markdown-body li > p {
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+  }
+
+  .markdown-body blockquote {
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    border-left: 3px solid hsl(var(--primary));
+    background-color: hsl(var(--sidebar));
+    border-radius: 0 8px 8px 0;
+    color: hsl(var(--muted));
+  }
+
+  .markdown-body blockquote > p:first-child {
+    margin-top: 0;
+  }
+
+  .markdown-body blockquote > p:last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown-body code {
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.85em;
+    background-color: hsl(var(--primary-soft));
+    color: hsl(var(--primary-strong));
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+  }
+
+  .markdown-body pre {
+    margin: 1em 0;
+    padding: 1em;
+    background-color: hsl(var(--sidebar));
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  .markdown-body pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .markdown-body a {
+    color: hsl(var(--primary-strong));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .markdown-body a:hover {
+    color: hsl(var(--primary));
+  }
+
+  .markdown-body strong {
+    font-weight: 600;
+  }
+
+  .markdown-body em {
+    font-style: italic;
+  }
+
+  .markdown-body hr {
+    margin: 1.5em 0;
+    border: none;
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .markdown-body table {
+    width: 100%;
+    margin: 1em 0;
+    border-collapse: collapse;
+  }
+
+  .markdown-body th,
+  .markdown-body td {
+    padding: 0.5em 0.75em;
+    border: 1px solid hsl(var(--border));
+    text-align: left;
+  }
+
+  .markdown-body th {
+    background-color: hsl(var(--sidebar));
+    font-weight: 600;
+  }
+
+  .markdown-body tr:nth-child(even) {
+    background-color: hsl(var(--sidebar) / 0.5);
+  }
+
+  .markdown-body img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 0.5em 0;
+  }
+
+  .markdown-body > *:first-child {
+    margin-top: 0;
+  }
+
+  .markdown-body > *:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/*
+ * 动画 keyframes
+ *
+ * - `li-blink`：AI 消息流式末尾光标（§19.1 generating 状态）
+ * - `li-bounce`：3 个 loading 点（§19.2）
+ */
+@layer utilities {
+  @keyframes li-blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    50.01%, 100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes li-bounce {
+    0%, 80%, 100% {
+      transform: translateY(0);
+      opacity: 0.5;
+    }
+    40% {
+      transform: translateY(-3px);
+      opacity: 1;
+    }
+  }
+
+  .li-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background-color: hsl(var(--primary));
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: li-blink 1s steps(2, start) infinite;
+  }
+
+  .li-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: hsl(var(--muted));
+    animation: li-bounce 1.2s infinite ease-in-out;
+  }
+  .li-dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .li-dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+
+/*
+ * 滚动条 §21 规格：
+ * - 默认：透明（页面仍可滚动，但不显示 scrollbar）
+ * - Hover / Active：显示 6px 细 scrollbar
+ */
+.scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.scroll-area:hover,
+.scroll-area:focus-within,
+.scroll-area:active {
+  scrollbar-color: hsl(var(--muted)) transparent;
+}
+.scroll-area::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-area::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.scroll-area:hover::-webkit-scrollbar-thumb,
+.scroll-area:focus-within::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+}

@@ -1,0 +1,53 @@
+[package]
+name = "little-ice"
+version = "0.1.0"
+description = "Little Ice - Desktop AI Chat App"
+authors = ["Little Ice Team"]
+edition = "2024"
+
+# `tauri dev` 会调 `cargo run`，没指定 --bin 时会报 "could not determine which binary"。
+# 显式声明默认 binary 是 `little-ice`（Tauri 主进程），`gen_types` 仍可通过
+# `cargo run --bin gen_types` 显式触发。
+default-run = "little-ice"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "little_ice_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "little-ice"
+path = "src/main.rs"
+
+[[bin]]
+name = "gen_types"
+path = "src/bin/gen_types.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "derive"] }
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+futures = "0.3"
+uuid = { version = "1", features = ["v7"] }  # V1.1: UUIDv7
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Specta v2：自动从 Rust 类型生成 TypeScript（比 ts-rs 更现代）
+specta = { version = "2.0.0-rc.25", features = ["derive", "collect", "function"] }
+specta-typescript = "0.0.12"
+specta-serde = "0.0.12"
+tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
