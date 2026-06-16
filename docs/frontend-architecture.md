@@ -1,7 +1,7 @@
 # Little Ice 前端架构文档
 
 > Tauri 2.x Desktop · MVP 阶段
-> 配套文档：`docs/ux-specification.md`（V5.5）、`docs/design-system.md`（V1.4）
+> 配套文档：`docs/ux-specification.md`、`docs/design-system.md`
 > 本文是**前端代码生成与维护的唯一事实源**（Single Source of Truth）。
 
 ---
@@ -49,9 +49,11 @@
 | 图标 | lucide-react | latest | shadcn/ui 默认 |
 | 表单 | react-hook-form + zod | latest | API Key 输入等 |
 | Tauri SDK | @tauri-apps/api | ^2 | |
+| 对话框 | @radix-ui/react-dialog | latest | 替代 Tauri Dialog Plugin |
 | Lint/Format | ESLint + Prettier | latest | |
 
 > **禁止**：Ant Design / MUI / Mantine / Redux / React Router / styled-components / emotion。
+> **已移除**：`@tauri-apps/plugin-dialog`（使用前端 Dialog 替代）。
 
 ---
 
@@ -71,13 +73,13 @@ little-ice/
 │   │   └── common/                   # ConfirmDialog、EmptyState、StatusBadge…
 │   ├── features/
 │   │   ├── chat/
-│   │   │   ├── components/           # ChatList、ChatContent、MessageItem、ChatInput
+│   │   │   ├── components/           # ChatList、ChatContent、MessageItem、ChatInput、MessageMarkdown
 │   │   │   ├── hooks/                # useChatStream、useSendMessage
 │   │   │   ├── store.ts
 │   │   │   ├── api.ts                # Tauri command 封装
 │   │   │   └── types.ts
 │   │   ├── favorite/
-│   │   │   ├── components/           # FavoriteList、FavoriteDetail、FavoriteEditor
+│   │   │   ├── components/           # FavoriteList、FavoriteDetail、FavoriteItem、FavoriteToolbar、SaveStatusBar
 │   │   │   ├── hooks/                # useFavoriteAutoSave
 │   │   │   ├── store.ts
 │   │   │   ├── api.ts
@@ -88,7 +90,7 @@ little-ice/
 │   │       ├── api.ts
 │   │       └── types.ts
 │   ├── stores/                       # 全局 store
-│   │   ├── appStore.ts               # 当前页面、当前选中项
+│   │   ├── appStore.ts               # 当前页面、当前选中项、Sidebar 折叠状态
 │   │   └── draftStore.ts             # 聊天草稿（Zustand persist）
 │   ├── lib/
 │   │   ├── tauri.ts                  # 类型安全 invoke 包装
@@ -97,7 +99,7 @@ little-ice/
 │   ├── types/
 │   │   └── models.ts                 # Chat / Message / Favorite / Settings
 │   └── styles/
-│       └── globals.css               # Tailwind 入口
+│       └── globals.css               # Tailwind 入口 + Markdown 样式
 ├── src-tauri/                        # Rust 端（不在本文档范围）
 ├── index.html
 ├── vite.config.ts
@@ -147,7 +149,8 @@ export interface Favorite {
   id: Id;
   title: string;
   content: string;
-  sourceChatId: Id | null;   // 来源 Chat id；手动创建时为 null。V1.3 重新启用，供 Chat 头部徽章使用。
+  sourceChatId: Id | null;      // 来源 Chat id；手动创建时为 null
+  sourceMessageId: Id | null;    // 来源 Message id；手动创建时为 null。用于判断消息是否已被收藏
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -214,12 +217,13 @@ export type DraftState = 'editing' | 'cached';
 
 | 命令 | 参数 | 返回 | 副作用 |
 |---|---|---|---|
-| `create_favorite` | `{ title: string, content: string, sourceChatId: Id \| null }` | `Favorite` | `sourceChatId` 必传，从 AI 消息收藏时传当前 chat.id，手动创建传 null |
+| `create_favorite` | `{ title: string, content: string, sourceChatId: Id \| null, sourceMessageId: Id \| null }` | `Favorite` | `sourceChatId` 必传，从 AI 消息收藏时传当前 chat.id，手动创建传 null；`sourceMessageId` 用于关联消息收藏状态 |
 | `list_favorites` | `{}` | `Favorite[]` | 按 `updatedAt` 倒序 |
 | `get_favorite` | `{ id: Id }` | `Favorite` |  |
 | `update_favorite` | `{ id: Id, patch: { title?: string; content?: string } }` | `Favorite` | 仅更新传入的字段；更新 `updatedAt`；**重命名走 `{ title }` patch** |
 | `delete_favorite` | `{ id: Id }` | `void` |  |
-| `count_favorites_by_chat` | `{ chatId: Id }` | `number` | 统计 `sourceChatId == chatId` 的数量；V1.3 重新启用，给 Chat 头部徽章用 |
+| `count_favorites_by_chat` | `{ chatId: Id }` | `number` | 统计 `sourceChatId == chatId` 的数量 |
+| `get_favorite_by_message_id` | `{ sourceMessageId: Id }` | `Favorite \| null` | 根据消息 ID 查找收藏，用于判断消息是否已被收藏 |
 
 ### 4.5 Settings
 
@@ -313,10 +317,12 @@ interface AppState {
   view: ViewMode;
   selectedChatId: Id | null;
   selectedFavoriteId: Id | null;
+  sidebarCollapsed: boolean;       // Sidebar 隐藏/展开状态
 
   setView: (v: ViewMode) => void;
   selectChat: (id: Id | null) => void;
   selectFavorite: (id: Id | null) => void;
+  toggleSidebar: () => void;       // 切换 Sidebar 隐藏/展开
 }
 ```
 
@@ -376,7 +382,7 @@ interface ChatState {
   streamingMessageId: Id | null;
   streamingDeltaBuffer: string;     // 容错用
 
-  favoriteCount: number;            // V1.3 重新启用：当前 chat 被收藏次数
+  favoriteCount: number;            // 当前 chat 被收藏次数
 
   // actions
   loadChats: () => Promise<void>;
@@ -388,7 +394,7 @@ interface ChatState {
   sendMessage: (content: string) => Promise<void>;
   stopGeneration: () => Promise<void>;
 
-  loadFavoriteCount: (chatId: Id) => Promise<void>;       // V1.3 重新启用
+  loadFavoriteCount: (chatId: Id) => Promise<void>;
 
   // event handlers (在 main.tsx 中注册)
   onStreamStart: (p: AiStreamStart) => void;
@@ -418,12 +424,15 @@ interface FavoriteState {
   lastSavedAt: Timestamp | null;
 
   loadFavorites: () => Promise<void>;
-  createFavorite: (title: string, content: string, sourceChatId: Id | null) => Promise<Favorite>;
+  createFavorite: (title: string, content: string, sourceChatId: Id | null, sourceMessageId?: Id | null) => Promise<Favorite | null>;
   selectFavorite: (id: Id) => Promise<void>;
-  renameFavorite: (id: Id, title: string) => Promise<void>;   // V5.3 新增：列表 hover 编辑走这个，内部调 update_favorite({ title })
+  renameFavorite: (id: Id, title: string) => Promise<void>;   // 列表 hover 编辑 / 详情页 Enter & Blur 都走这个
   updateContent: (id: Id, content: string) => Promise<void>;   // 自动+手动保存（仅内容，标题走 renameFavorite）
   manualSave: () => Promise<void>;
-  deleteFavorite: (id: Id) => Promise<void>;   // V5.3：仅在列表 hover 区触发，详情页无此入口
+  deleteFavorite: (id: Id) => Promise<void>;   // 仅列表 hover 区触发
+
+  // utility
+  clearError: () => void;
 }
 ```
 
@@ -484,28 +493,26 @@ function transitionAiState(
 
 ### 7.4 确认对话框（删除操作）
 
-UX 文档第 6 章：删除 Chat / Favorite / 清空数据需确认。
+UX 文档第 6 章：删除 Chat / Favorite / 取消收藏需确认。
 
-封装 `src/components/common/ConfirmDialog.tsx`，使用 Tauri Dialog Plugin：
+封装 `src/components/common/ConfirmDialog.tsx`，使用 @radix-ui/react-dialog 实现 shadcn/ui 风格 Dialog：
 
-```ts
-import { ask } from '@tauri-apps/plugin-dialog';
+```tsx
+// 全局单例组件，在 App 顶层挂载
+export function ConfirmDialog(): React.JSX.Element | null { ... }
 
-export async function confirmDestructive(message: string): Promise<boolean> {
-  return await ask(message, {
-    title: '确认',
-    kind: 'warning',
-    okLabel: '确认',
-    cancelLabel: '取消',
-  });
-}
+// 触发函数，返回 Promise<boolean>
+export async function confirmDestructive(message: string): Promise<boolean> { ... }
 ```
 
-**触发位置**（V5.3）：
+**触发位置**：
 - Chat 删除：`ChatList` 列表项 hover → 删除图标
 - Favorite 删除：**`FavoriteList` 列表项 hover → 删除图标**（详情页无此入口，避免与保存误触）
+- 取消收藏：`MessageItem` 中已收藏的 AI 消息点击收藏图标
 
 **禁止**自建复杂业务弹窗（编辑弹窗、向导弹窗、多层嵌套弹窗）。
+
+**已移除 `@tauri-apps/plugin-dialog`**：使用前端 Dialog 替代系统 Dialog。
 
 ### 7.5 首次启动检测
 
@@ -560,37 +567,40 @@ export const aiEvents = {
 
 ### 8.1 公共
 
-- `AppShell`：三栏布局容器（Sidebar 240 / List 320 / Content 自适应）
-- `Sidebar`：三个菜单项
-- `ListPanel`：根据 `appStore.view` 渲染对应列表
+- `AppShell`：三栏布局容器（Sidebar 240 / List 320 / Content 自适应），支持 Sidebar 隐藏/展开
+- `Sidebar`：Logo + 顶部菜单（对话/收藏）+ 底部菜单（设置）+ 可隐藏/展开
+- `ListPanel`：根据 `appStore.view` 渲染对应列表 + Toolbar
 - `ContentPanel`：根据 `appStore.view` 渲染对应内容
 - `EmptyState`：列表/内容为空时展示
-- `ConfirmDialog`（封装 Tauri ask）
+- `ConfirmDialog`（基于 @radix-ui/react-dialog 的 shadcn/ui 风格 Dialog）
 - `InlineMessage`：成功/错误提示（行内）
 
 ### 8.2 Chat
 
-- `ChatList`：列表项显示标题 + 更新时间（相对时间，如 "3 分钟前"）；hover 时右侧显示**编辑 + 删除**两个图标（V5.3）
+- `ChatToolbar`：MessageSquare 图标 + "对话" 文字 + 对话数量徽章（数量=0时灰色，>0时亮起）+ `New Chat` 按钮（Soft 风格）
+- `ChatList`：列表项显示标题 + 更新时间（相对时间，如 "3 分钟前"）；hover 时右侧显示**编辑 + 删除**两个图标
   - 编辑：进入行内编辑模式（input 替换 title），Enter / Blur 确认 → 调 `renameChat`；Esc 取消
   - 删除：调 `confirmDestructive` → 调 `deleteChat`
-- `ChatToolbar`：`New Chat` 按钮
-- `ChatContent`（V1.3 更新）：
-  - `Header`：左侧当前 chat 标题（点击进入重命名模式） + 右侧**仅**显示收藏数徽章 `⭐ N`（来自 `chatStore.favoriteCount`，N=0 也显示）。**不显示**"收藏"图标按钮和"更多"图标按钮。
+- `ChatContent`：
+  - `Header`：左侧当前 chat 标题（点击进入重命名模式） + 右侧收藏数徽章 `⭐ N`（N=0 时空心灰色，N>0 时实心蓝色）。**不显示**"收藏"图标按钮和"更多"图标按钮。
   - `MessageList`：倒序/正序渲染（最新在底），按 `role` 区分样式
-  - `MessageItem`：用户右对齐、AI 左对齐、system 居中灰
-  - `ChatInput`：textarea + Send / Stop 切换按钮
+  - `MessageItem`：用户右对齐、AI 左对齐、system 居中灰；AI 消息 hover 显示 Copy + Favorite 图标按钮；收藏状态实时更新（空心/实心）
+  - `ChatInput`：textarea（rows=3）+ Send / Stop 切换按钮；宽度与 Content Panel 一致
   - 状态指示：`aiState` 决定按钮文案与 loading 动画
+- `MessageMarkdown`：Markdown 渲染，使用 `.markdown-body` 全局样式类
 
 ### 8.3 Favorite
 
-- `FavoriteList`：标题 + 更新时间 + dirty 标记；hover 时右侧显示**编辑 + 删除**两个图标（V5.3）
+- `FavoriteToolbar`：Star 图标 + "收藏" 文字 + 收藏数量徽章（数量=0时灰色，>0时亮起）
+- `FavoriteList`：标题 + 更新时间 + dirty 标记；hover 时右侧显示**编辑 + 删除**两个图标
   - 编辑：进入行内编辑模式 → 调 `renameFavorite`
   - 删除：调 `confirmDestructive` → 调 `deleteFavorite`
-- `FavoriteDetail`（V5.3 更新）：
+- `FavoriteDetail`：
   - `Title`：受控 input，Enter / Blur 触发实时保存（调 `renameFavorite`）
-  - `Editor`：受控 textarea，`isDirty` 时显示"未保存"
-  - `SaveButton`：手动保存按钮（自动保存兜底）
-  - ~~`DeleteButton`~~：**V5.3 已移除**，删除入口仅在 `FavoriteList` 列表项 hover 区
+  - `Editor`：受控 textarea，变化时调 `updateContent` 置 `isDirty = true`
+  - `Markdown Preview`：实时渲染 Markdown，支持拖动分割线调整编辑/预览高度（各占50%，最小高度20%）
+  - `SaveButton`：手动保存按钮（isDirty=false 时 disabled 灰色，isDirty=true 时 Primary 可点击；保存中只显示 spinner）
+  - 删除入口仅在 `FavoriteList` 列表项 hover 区
 
 ### 8.4 Settings
 
@@ -701,12 +711,3 @@ import './styles.css';
 随后将本次具体需求附上即可。
 
 ---
-
-## 13. 版本
-
-| 版本 | 日期 | 变更 |
-|---|---|---|
-| 1.0 | 2026-06-12 | 初版，对齐 UX Spec V5.2 |
-| 1.1 | 2026-06-12 | 对齐 UX Spec V5.3：Favorite 加 `sourceChatId`；新增 `count_favorites_by_chat` 命令；chatStore 加 `favoriteCount`；favoriteStore 加 `renameFavorite`；Chat/Favorite 列表加编辑；Chat Header 显示收藏数；Favorite Detail 移除 Delete 按钮 |
-| 1.2 | 2026-06-12 | 对齐 UX Spec V5.4：撤回 Chat Header 收藏数（移除 `count_favorites_by_chat` 命令、chatStore.favoriteCount / loadFavoriteCount）；`sourceChatId` 字段保留但无 UI 消费 |
-| 1.3 | 2026-06-12 | 对齐 UX Spec V5.5：**恢复** Chat Header 收藏数徽章（恢复 `count_favorites_by_chat` 命令、chatStore.favoriteCount / loadFavoriteCount）；`sourceChatId` 字段重新启用 |
