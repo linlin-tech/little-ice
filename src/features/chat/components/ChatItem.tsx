@@ -4,22 +4,44 @@
  * 单个 chat 列表项：
  * - 容器：`p-3 rounded-md mx-2 cursor-pointer` + hover `bg-primary-hover` + selected `bg-primary-soft`
  * - 内容（§13.2）：单行省略号的 Title + 灰色 meta 时间
- * - Hover 时淡入（150ms）Edit + Delete 两个 IconButton
- * - 点击 Edit 进入行内编辑态（§13.4）：input 替换 title，下划线提示
- *   - Enter / Blur → 调 `renameChat` + 退编辑
- *   - Esc → 退编辑（不保存）
- * - 点击 Delete → `confirmDestructive` → 调 `deleteChat`
+ * - Hover 时淡入（150ms）「…」菜单按钮
+ * - 菜单项：模型角色 ▶（二级菜单）/ 编辑 / 删除
+ * - 编辑：行内编辑 title
+ * - 删除：confirmDestructive → deleteChat
+ *
+ * 「…」菜单弹出层使用 React Portal 渲染到 document.body：
+ * - ListPanel 是 CSS Grid 的一列 + z-10，且其内部列表区有 `overflow-y-auto`
+ *   滚动容器 + 右侧 ContentPanel 在同一 grid 行中后置；
+ * - 二级菜单「模型角色 ▶」需要从主菜单右侧延伸进入 ContentPanel 区域；
+ *   若用普通 `absolute` 定位，会被 ListPanel 自身 z-index 与 ContentPanel 的
+ *   后置层叠顺序覆盖（视觉上"被对话区盖住"）。
+ * - 用 `createPortal` + `position: fixed`，并按触发按钮的 `getBoundingClientRect()`
+ *   计算坐标，让菜单脱离父级 stacking context / overflow 边界，浮在 ContentPanel 之上。
  */
 
-import { Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Check, UserCog } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useChatStore } from "@/features/chat/store";
+import { useRoleStore } from "@/features/role/store";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { Chat } from "@/types/models";
+import type { Chat, Role } from "@/types/models";
 
 import { confirmDestructive } from "@/components/common/ConfirmDialog";
+
+interface MenuPosition {
+  top: number;
+  right: number;
+}
+
+interface SubmenuPosition {
+  top: number;
+  left: number;
+}
+
+const MENU_OFFSET = 4; // mt-1 = 4px
 
 interface ChatItemProps {
   chat: Chat;
@@ -30,6 +52,9 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
   const selectChat = useChatStore((s) => s.selectChat);
   const renameChat = useChatStore((s) => s.renameChat);
   const deleteChat = useChatStore((s) => s.deleteChat);
+  const setChatRole = useChatStore((s) => s.setChatRole);
+
+  const roles = useRoleStore((s) => s.roles);
 
   const selected = selectedChatId === chat.id;
 
@@ -38,6 +63,19 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
   const [draftTitle, setDraftTitle] = useState(chat.title);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 菜单状态
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [roleSubOpen, setRoleSubOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+  const [submenuPosition, setSubmenuPosition] = useState<SubmenuPosition | null>(
+    null,
+  );
+
+  // Refs（用于 click-outside 判定 + 计算菜单位置）
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mainMenuRef = useRef<HTMLDivElement>(null);
+  const submenuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (editing) {
       inputRef.current?.focus();
@@ -45,15 +83,64 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
     }
   }, [editing]);
 
-  // chat.title 变化时同步（避免重命名后旧值"复活"）
   useEffect(() => {
     if (!editing) setDraftTitle(chat.title);
   }, [chat.title, editing]);
+
+  // 点击外部关闭菜单（mousedown 监听；需覆盖 portal 出去的菜单）
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        menuButtonRef.current?.contains(target) ||
+        mainMenuRef.current?.contains(target) ||
+        submenuRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setMenuOpen(false);
+      setRoleSubOpen(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [menuOpen]);
+
+  // 滚动 / 窗口大小变化：关闭菜单，避免 fixed 定位与触发按钮错位
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => {
+      setMenuOpen(false);
+      setRoleSubOpen(false);
+    };
+    window.addEventListener("resize", close);
+    // capture: true 在捕获阶段触发，覆盖嵌套滚动容器（ListPanel 内的滚动列表）
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menuOpen]);
+
+  // ESC 关闭菜单
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setRoleSubOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   const startEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     setDraftTitle(chat.title);
     setEditing(true);
+    setMenuOpen(false);
+    setRoleSubOpen(false);
   };
 
   const commitEdit = async () => {
@@ -73,10 +160,48 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
 
   const onDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const ok = await confirmDestructive(
-      `要删除该对话吗？`,
-    );
+    setMenuOpen(false);
+    const ok = await confirmDestructive("要删除该对话吗？");
     if (ok) await deleteChat(chat.id);
+  };
+
+  const onSetRole = async (role: Role) => {
+    await setChatRole(chat.id, role.id);
+    setMenuOpen(false);
+    setRoleSubOpen(false);
+  };
+
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (menuOpen) {
+      // 关闭
+      setMenuOpen(false);
+      setRoleSubOpen(false);
+      setMenuPosition(null);
+      setSubmenuPosition(null);
+      return;
+    }
+    // 打开：按触发按钮的位置计算主菜单位置（viewport 坐标）
+    const rect = menuButtonRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMenuPosition({
+        top: rect.bottom + MENU_OFFSET,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setMenuOpen(true);
+    setRoleSubOpen(false);
+  };
+
+  const openSubmenu = () => {
+    // 二级菜单位置：紧贴主菜单右侧
+    if (!mainMenuRef.current) return;
+    const rect = mainMenuRef.current.getBoundingClientRect();
+    setSubmenuPosition({
+      top: rect.top,
+      left: rect.right + 2,
+    });
+    setRoleSubOpen(true);
   };
 
   return (
@@ -104,7 +229,6 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
               cancelEdit();
             }
           }}
-          // §13.4 行内编辑：宽度 100% / 14px / 500 / 蓝色下划线
           className="w-full border-0 border-b border-primary bg-transparent text-sm font-medium leading-snug text-foreground outline-none"
           onClick={(e) => e.stopPropagation()}
         />
@@ -118,57 +242,119 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
         {formatRelativeTime(chat.updatedAt)}
       </div>
 
-      {/* hover 才显示的操作图标（§13.3，V1.2 双图标） */}
+      {/* hover 才显示的「…」菜单按钮（§13.3） */}
       {!editing && (
         <div
           className={cn(
             "absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1",
             "opacity-0 transition-opacity duration-150 group-hover:opacity-100",
-            // 选中态常显（让用户在已选中项上仍能点 Delete）
             selected && "opacity-100",
           )}
         >
-          <IconBtn ariaLabel="编辑" onClick={startEdit}>
-            <Pencil className="h-3.5 w-3.5" />
-          </IconBtn>
-          <IconBtn ariaLabel="删除" onClick={onDelete} danger>
-            <Trash2 className="h-3.5 w-3.5" />
-          </IconBtn>
+          <button
+            ref={menuButtonRef}
+            type="button"
+            aria-label="更多操作"
+            onClick={toggleMenu}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-background hover:text-foreground"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
+
+      {/* 主菜单（§12.7）— Portal 到 body，避免被右侧 ContentPanel 覆盖 */}
+      {menuOpen &&
+        menuPosition &&
+        createPortal(
+          <div
+            ref={mainMenuRef}
+            style={{
+              position: "fixed",
+              top: menuPosition.top,
+              right: menuPosition.right,
+            }}
+            className="z-50 w-40 rounded-md border border-border bg-background py-1 shadow-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 模型角色二级菜单入口 */}
+            <div
+              className="group/role relative flex cursor-pointer items-center justify-between px-3 py-1.5 text-sm text-foreground hover:bg-primary-hover"
+              onMouseEnter={openSubmenu}
+              onMouseLeave={() => setRoleSubOpen(false)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="flex items-center gap-2">
+                <UserCog className="h-3.5 w-3.5 text-muted" />
+                模型角色
+              </span>
+              <span className="text-xs text-muted">▶</span>
+            </div>
+
+            <div className="my-1 h-px bg-border" />
+
+            <button
+              type="button"
+              onClick={startEdit}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-primary-hover"
+            >
+              <Pencil className="h-3.5 w-3.5 text-muted" />
+              编辑
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-foreground hover:bg-primary-hover hover:text-error"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted" />
+              删除
+            </button>
+          </div>,
+          document.body,
+        )}
+
+      {/* 二级菜单（角色切换子菜单）— Portal 到 body，浮在 ContentPanel 之上 */}
+      {roleSubOpen &&
+        submenuPosition &&
+        createPortal(
+          <div
+            ref={submenuRef}
+            style={{
+              position: "fixed",
+              top: submenuPosition.top,
+              left: submenuPosition.left,
+            }}
+            className="z-50 min-w-[140px] rounded-md border border-border bg-background py-1 shadow-md"
+            onMouseEnter={() => setRoleSubOpen(true)}
+            onMouseLeave={() => setRoleSubOpen(false)}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 系统永远至少有「默认助手」内置角色（DB migration 保证），
+                此处不渲染空态文案；App.tsx 启动时已 loadRoles()。 */}
+            {roles.map((role) => (
+              <button
+                key={role.id}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onSetRole(role);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-primary-hover",
+                  role.id === chat.roleId
+                    ? "text-primary-strong"
+                    : "text-foreground",
+                )}
+              >
+                <span>{role.name}</span>
+                {role.id === chat.roleId && (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </li>
-  );
-}
-
-// =============================================================
-// IconButton：hover 操作按钮（§12.6，List Item 内嵌）
-// =============================================================
-
-interface IconBtnProps {
-  onClick: (e: React.MouseEvent) => void;
-  danger?: boolean;
-  ariaLabel: string;
-  children: React.ReactNode;
-}
-
-function IconBtn({
-  onClick,
-  danger,
-  ariaLabel,
-  children,
-}: IconBtnProps): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors",
-        "text-muted hover:bg-background",
-        danger && "hover:text-error",
-      )}
-    >
-      {children}
-    </button>
   );
 }

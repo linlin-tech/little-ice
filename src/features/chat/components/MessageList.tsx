@@ -3,9 +3,21 @@
  *
  * 渲染当前 chat 的所有 messages。最新的消息在底部。
  * 当 currentChatId 为 null 时展示 `<EmptyState />`。
+ *
+ * ## 性能（流式滚动卡顿修复）
+ *
+ * 把 `streamingMessageId` 的订阅从 MessageItem 上移到 MessageList，
+ * 通过 prop `streaming={streamingMessageId === m.id}` 传给子组件；
+ * MessageItem 用 React.memo 包裹后，**非流式消息在 chunks 期间不会重渲染**，
+ * 滚动查看时不再因每条消息都重跑 Markdown 解析而卡顿。
+ *
+ * ## 自动滚动（follow-mode）
+ *
+ * 流式期间默认滚到底部跟随新内容，但若用户主动上滑查看历史消息，
+ * 则暂停自动滚动，避免把用户拽回底部；用户再次滚到底部时恢复跟随。
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MessageSquare } from "lucide-react";
 
 import { useChatStore } from "@/features/chat/store";
@@ -13,10 +25,13 @@ import { useChatStore } from "@/features/chat/store";
 import { EmptyState } from "@/components/common/EmptyState";
 import { MessageItem } from "./MessageItem";
 
+const FOLLOW_THRESHOLD_PX = 80;
+
 export function MessageList(): React.JSX.Element {
   const currentChatId = useChatStore((s) => s.currentChatId);
   const messages = useChatStore((s) => s.messages);
   const messagesStatus = useChatStore((s) => s.messagesStatus);
+  const streamingMessageId = useChatStore((s) => s.streamingMessageId);
   const selectChat = useChatStore((s) => s.selectChat);
   const loadFavoriteCount = useChatStore((s) => s.loadFavoriteCount);
 
@@ -27,6 +42,53 @@ export function MessageList(): React.JSX.Element {
       void loadFavoriteCount(currentChatId);
     }
   }, [currentChatId, loadFavoriteCount]);
+
+  // ===== 自动滚动（follow-mode）=====
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const followModeRef = useRef(true);
+
+  // 找到最近的外层 overflow-y-auto 滚动容器（ChatContent 的 .scroll-area）
+  useEffect(() => {
+    const findScrollParent = (
+      el: HTMLElement | null,
+    ): HTMLElement | null => {
+      let cur: HTMLElement | null = el;
+      while (cur) {
+        const style = getComputedStyle(cur);
+        if (
+          style.overflowY === "auto" ||
+          style.overflowY === "scroll" ||
+          style.overflowY === "overlay"
+        ) {
+          return cur;
+        }
+        cur = cur.parentElement;
+      }
+      return null;
+    };
+    const container = findScrollParent(sentinelRef.current);
+    scrollContainerRef.current = container;
+    if (!container) return;
+
+    const onScroll = () => {
+      const distance =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      followModeRef.current = distance < FOLLOW_THRESHOLD_PX;
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
+    // 初始化：当前就在底部则跟随，否则不跟随
+    onScroll();
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+    };
+  }, [currentChatId]);
+
+  // 消息列表更新时：若处于跟随模式，滚到底部
+  useEffect(() => {
+    if (!followModeRef.current) return;
+    sentinelRef.current?.scrollIntoView({ block: "end" });
+  }, [messages, streamingMessageId]);
 
   if (currentChatId === null) {
     return (
@@ -80,9 +142,14 @@ export function MessageList(): React.JSX.Element {
     <ol className="flex flex-col gap-4 list-none p-0">
       {messages.map((m) => (
         <li key={m.id}>
-          <MessageItem message={m} />
+          <MessageItem
+            message={m}
+            streaming={streamingMessageId === m.id}
+          />
         </li>
       ))}
+      {/* 滚动哨兵：用于 follow-mode 自动滚动 */}
+      <div ref={sentinelRef} aria-hidden="true" />
     </ol>
   );
 }

@@ -40,6 +40,17 @@ pub async fn rename_chat(
 
 #[tauri::command]
 #[specta]
+pub async fn set_chat_role(
+    state: State<'_, AppState>,
+    id: String,
+    role_id: String,
+) -> AppResult<Chat> {
+    let chat = crate::db::chat::set_role(&state.db, &id, role_id).await?;
+    Ok(chat)
+}
+
+#[tauri::command]
+#[specta]
 pub async fn delete_chat(state: State<'_, AppState>, id: String) -> AppResult<()> {
     crate::db::chat::delete(&state.db, &id).await
 }

@@ -32,7 +32,7 @@ export type Timestamp = number;
 // 视图/状态机（前端独有）
 // =============================================================
 
-export type ViewMode = "chat" | "favorite" | "settings";
+export type ViewMode = "chat" | "favorite" | "role" | "settings";
 
 export type ResourceStatus = "empty" | "loading" | "ready" | "error";
 
@@ -120,6 +120,7 @@ export type {
   FavoritePatch,
   Message,
   MessageRole,
+  Role,
   SendMessageResult,
   Settings,
 } from "./generated";

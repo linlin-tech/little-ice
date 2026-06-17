@@ -22,6 +22,7 @@ import {
   PanelLeftOpen,
   Settings,
   Star,
+  UserCog,
 } from "lucide-react";
 
 import { useAppStore } from "@/stores/appStore";
@@ -39,6 +40,7 @@ interface MenuItem {
 const TOP_MENU_ITEMS: readonly MenuItem[] = [
   { view: "chat", label: "对话", icon: MessageSquare },
   { view: "favorite", label: "收藏", icon: Star },
+  { view: "role", label: "模型角色", icon: UserCog },
 ] as const;
 
 const BOTTOM_MENU_ITEMS: readonly MenuItem[] = [

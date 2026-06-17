@@ -9,4 +9,5 @@ pub mod ai;
 pub mod chat;
 pub mod favorite;
 pub mod message;
+pub mod role;
 pub mod settings;

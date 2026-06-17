@@ -9,11 +9,22 @@
  * AI 消息 hover 时显示 Copy + Favorite（§8.2）两个 IconButton。
  * Copy → navigator.clipboard；Favorite → 创建 favorite（调 favorite store）。
  *
- * 流式中（`streamingMessageId === m.id`）的 assistant 消息显示"光标"动画。
+ * 流式中（`streaming === true`）的 assistant 消息显示"光标"动画。
+ *
+ * ## 性能（流式滚动卡顿修复）
+ *
+ * 整组件用 React.memo 包裹，仅依赖 `message` 和 `streaming` 两个 prop 的浅比较。
+ * `streaming` 由父组件 MessageList 从 chatStore 订阅后传入，本组件**不再订阅 streamingMessageId**，
+ * 避免 chunks 期间整条消息列表都重跑 Markdown 解析导致滚动卡顿：
+ *
+ * - 非流式消息（streaming=false 且 message 引用不变）→ React.memo 直接 bail out，不重渲染
+ * - 流式消息（streaming=true 且 message.content 随 chunk 增长）→ 必然重渲染（必要）
+ *
+ * 内部 useChatStore 仅取函数引用（loadFavoriteCount），函数引用稳定不触发额外渲染。
  */
 
 import { Check, Copy, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 import { useChatStore } from "@/features/chat/store";
 import { useFavoriteStore } from "@/features/favorite/store";
@@ -27,25 +38,23 @@ import { MessageMarkdown } from "./MessageMarkdown";
 
 interface MessageItemProps {
   message: Message;
+  /** 当前 assistant 消息是否正在流式接收（控制光标动画 + Markdown 实时更新） */
+  streaming: boolean;
 }
 
-export function MessageItem({
+function MessageItemImpl({
   message,
+  streaming,
 }: MessageItemProps): React.JSX.Element | null {
-  const streamingMessageId = useChatStore((s) => s.streamingMessageId);
-
   if (message.role === "user") return <UserMessage message={message} />;
   if (message.role === "assistant") {
-    return (
-      <AssistantMessage
-        message={message}
-        streaming={streamingMessageId === message.id}
-      />
-    );
+    return <AssistantMessage message={message} streaming={streaming} />;
   }
   if (message.role === "system") return <SystemMessage message={message} />;
   return null;
 }
+
+export const MessageItem = memo(MessageItemImpl);
 
 // =============================================================
 // User Message（§14.1）：右对齐 + 气泡
@@ -83,10 +92,12 @@ function AssistantMessage({
   const [copied, setCopied] = useState(false);
   const openCreateFavorite = useCreateFavorite();
   const deleteFavorite = useFavoriteStore((s) => s.deleteFavorite);
+  // 只取函数引用，函数引用稳定不触发组件重渲染
   const loadFavoriteCount = useChatStore((s) => s.loadFavoriteCount);
   const [favorited, setFavorited] = useState<{ id: string } | null>(null);
 
   // 检查该消息是否已被收藏
+  // 仅在 message.id 变化时触发——流式期间 content 每 chunk 都变，不能作为依赖
   useEffect(() => {
     let cancelled = false;
     const tauri = import("@/lib/tauri").then((m) => m.tauri);
@@ -100,7 +111,7 @@ function AssistantMessage({
     return () => {
       cancelled = true;
     };
-  }, [message.id, message.content]);
+  }, [message.id]);
 
   const onCopy = async () => {
     try {

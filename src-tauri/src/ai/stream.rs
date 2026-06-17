@@ -26,17 +26,24 @@ pub async fn run_stream(
         return Err(AppError::Ai("api_key empty".into()));
     }
 
-    // 2. 读取该 chat 的历史 messages（构建上下文）
-    let history = crate::db::message::list_by_chat(db, chat_id).await?;
-    let context: Vec<ChatMessage> = history
-        .iter()
-        .map(|m| ChatMessage {
-            role: m.role.as_protocol_str().to_string(),
-            content: m.content.clone(),
-        })
-        .collect();
+    // 2. 读取当前 chat 绑定的 role
+    let role = crate::db::role::get_by_chat_id(db, chat_id).await?;
 
-    // 3. 发送 Start 事件
+    // 3. 读取该 chat 的历史 messages（构建上下文）
+    let history = crate::db::message::list_by_chat(db, chat_id).await?;
+
+    // 4. 构造上下文：system prompt + history（跳过当前刚创建的 assistant 占位消息）
+    let mut context: Vec<ChatMessage> = Vec::with_capacity(history.len() + 1);
+    context.push(ChatMessage {
+        role: "system".to_string(),
+        content: role.responsibility,
+    });
+    context.extend(history.iter().filter(|m| m.id != assistant_message_id).map(|m| ChatMessage {
+        role: m.role.as_protocol_str().to_string(),
+        content: m.content.clone(),
+    }));
+
+    // 5. 发送 Start 事件
     emit_start(
         app,
         &AiStreamStart {
@@ -45,12 +52,12 @@ pub async fn run_stream(
         },
     );
 
-    // 4. 开启 SSE 流
+    // 6. 开启 SSE 流
     let mut rx = ai.stream_chat(&api_key, &context, cancel.clone()).await?;
     let mut full_content = String::new();
     let mut stopped = false;
 
-    // 5. 接收 chunks
+    // 7. 接收 chunks
     loop {
         tokio::select! {
             _ = cancel.cancelled() => {
@@ -76,11 +83,11 @@ pub async fn run_stream(
         }
     }
 
-    // 6. 持久化完整内容
+    // 8. 持久化完整内容
     crate::db::message::update_content(db, assistant_message_id, &full_content).await?;
     crate::db::chat::touch(db, chat_id).await?; // 更新 chat 排序时间
 
-    // 7. 发送 End 事件
+    // 9. 发送 End 事件
     emit_end(
         app,
         &AiStreamEnd {

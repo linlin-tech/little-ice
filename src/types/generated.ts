@@ -3,6 +3,7 @@
 export type Chat = {
 	id: string,
 	title: string,
+	roleId: string,
 	createdAt: number,
 	updatedAt: number,
 };
@@ -36,6 +37,16 @@ export type Message = {
 };
 
 export type MessageRole = "user" | "assistant" | "system";
+
+/**  Role（前端 Role，对应 §3 数据模型） */
+export type Role = {
+	id: string,
+	name: string,
+	responsibility: string,
+	isBuiltin: boolean,
+	createdAt: number,
+	updatedAt: number,
+};
 
 export type SendMessageResult = {
 	userMessage: Message,

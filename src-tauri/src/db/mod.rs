@@ -7,6 +7,7 @@ pub mod chat;
 pub mod favorite;
 pub mod message;
 pub mod pool;
+pub mod role;
 pub mod settings;
 
 pub use pool::{init, DbPool};

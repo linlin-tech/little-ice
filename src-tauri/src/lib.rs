@@ -55,6 +55,7 @@ pub fn run() {
             crate::commands::chat::list_chats,
             crate::commands::chat::get_chat,
             crate::commands::chat::rename_chat,
+            crate::commands::chat::set_chat_role,
             crate::commands::chat::delete_chat,
             // ===== Message（§4.2）=====
             crate::commands::message::list_messages,
@@ -69,6 +70,13 @@ pub fn run() {
             crate::commands::favorite::update_favorite,
             crate::commands::favorite::delete_favorite,
             crate::commands::favorite::count_favorites_by_chat,
+            // ===== Role（§4.x）=====
+            crate::commands::role::create_role,
+            crate::commands::role::list_roles,
+            crate::commands::role::get_role,
+            crate::commands::role::update_role,
+            crate::commands::role::delete_role,
+            crate::commands::role::get_role_by_chat_id,
             // ===== Settings（§4.5）=====
             crate::commands::settings::get_settings,
             crate::commands::settings::set_api_key,

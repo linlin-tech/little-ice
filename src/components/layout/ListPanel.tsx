@@ -22,6 +22,8 @@ import { ChatList } from "@/features/chat/components/ChatList";
 import { ChatToolbar } from "@/features/chat/components/ChatToolbar";
 import { FavoriteList } from "@/features/favorite/components/FavoriteList";
 import { FavoriteToolbar } from "@/features/favorite/components/FavoriteToolbar";
+import { RoleList } from "@/features/role/components/RoleList";
+import { RoleToolbar } from "@/features/role/components/RoleToolbar";
 
 export function ListPanel(): React.JSX.Element {
   const view = useAppStore((s) => s.view);
@@ -31,7 +33,7 @@ export function ListPanel(): React.JSX.Element {
   return (
     <section
       className={cn(
-        "relative flex h-full flex-col overflow-hidden border-r border-border bg-background",
+        "relative z-10 flex h-full flex-col border-r border-border bg-background",
       )}
     >
       {/* 侧栏展开按钮（仅折叠态显示）：
@@ -62,9 +64,11 @@ export function ListPanel(): React.JSX.Element {
 
       {view === "chat" && <ChatToolbar />}
       {view === "favorite" && <FavoriteToolbar />}
+      {view === "role" && <RoleToolbar />}
       <div className="flex-1 overflow-y-auto">
         {view === "chat" && <ChatList />}
         {view === "favorite" && <FavoriteList />}
+        {view === "role" && <RoleList />}
         {view === "settings" && null}
       </div>
     </section>

@@ -1,6 +1,6 @@
 [package]
 name = "little-ice"
-version = "0.1.0"
+version = "0.1.1"
 description = "Little Ice - Desktop AI Chat App"
 authors = ["Little Ice Team"]
 edition = "2024"

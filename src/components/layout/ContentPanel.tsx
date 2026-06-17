@@ -8,6 +8,7 @@
  * 根据 `appStore.view` 渲染对应内容：
  * - `chat`     → ChatContent
  * - `favorite` → FavoriteDetail
+ * - `role`     → RoleDetail
  * - `settings` → SettingsPage（§22）
  */
 
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { ChatContent } from "@/features/chat/components/ChatContent";
 import { FavoriteDetail } from "@/features/favorite/components/FavoriteDetail";
+import { RoleDetail } from "@/features/role/components/RoleDetail";
 import { SettingsPage } from "@/features/settings/components/SettingsPage";
 
 export function ContentPanel(): React.JSX.Element {
@@ -25,6 +27,7 @@ export function ContentPanel(): React.JSX.Element {
     <section className={cn("h-full bg-background")}>
       {view === "chat" && <ChatContent />}
       {view === "favorite" && <FavoriteDetail />}
+      {view === "role" && <RoleDetail />}
       {view === "settings" && <SettingsPage />}
     </section>
   );

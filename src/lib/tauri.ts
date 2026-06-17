@@ -25,6 +25,7 @@ import type {
   Favorite,
   FavoritePatch,
   Message,
+  Role,
   SendMessageResult,
   Settings,
 } from "@/types/models";
@@ -51,6 +52,11 @@ function getChat(id: string): Promise<Chat> {
 /** `rename_chat({ id, title }) -> Chat` */
 function renameChat(id: string, title: string): Promise<Chat> {
   return invoke<Chat>("rename_chat", { id, title });
+}
+
+/** `set_chat_role({ id, roleId }) -> Chat` */
+function setChatRole(id: string, roleId: string): Promise<Chat> {
+  return invoke<Chat>("set_chat_role", { id, roleId });
 }
 
 /** `delete_chat({ id }) -> void` */
@@ -145,6 +151,44 @@ function countFavoritesByChat(chatId: string): Promise<number> {
 }
 
 // =============================================================
+// Role（§4.x）
+// =============================================================
+
+/** `create_role({ name, responsibility }) -> Role` */
+function createRole(name: string, responsibility: string): Promise<Role> {
+  return invoke<Role>("create_role", { name, responsibility });
+}
+
+/** `list_roles({}) -> Role[]` */
+function listRoles(): Promise<Role[]> {
+  return invoke<Role[]>("list_roles");
+}
+
+/** `get_role({ id }) -> Role` */
+function getRole(id: string): Promise<Role> {
+  return invoke<Role>("get_role", { id });
+}
+
+/** `update_role({ id, name?, responsibility? }) -> Role` */
+function updateRole(
+  id: string,
+  name: string | null,
+  responsibility: string | null,
+): Promise<Role> {
+  return invoke<Role>("update_role", { id, name, responsibility });
+}
+
+/** `delete_role({ id }) -> void` */
+function deleteRole(id: string): Promise<void> {
+  return invoke<void>("delete_role", { id });
+}
+
+/** `get_role_by_chat_id({ chatId }) -> Role` */
+function getRoleByChatId(chatId: string): Promise<Role> {
+  return invoke<Role>("get_role_by_chat_id", { chatId });
+}
+
+// =============================================================
 // Settings（§4.5）
 // =============================================================
 
@@ -164,6 +208,7 @@ export const tauri = {
   listChats,
   getChat,
   renameChat,
+  setChatRole,
   deleteChat,
   // Message
   listMessages,
@@ -178,6 +223,13 @@ export const tauri = {
   updateFavorite,
   deleteFavorite,
   countFavoritesByChat,
+  // Role
+  createRole,
+  listRoles,
+  getRole,
+  updateRole,
+  deleteRole,
+  getRoleByChatId,
   // Settings
   getSettings,
   setApiKey,
