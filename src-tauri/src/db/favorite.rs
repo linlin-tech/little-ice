@@ -126,10 +126,7 @@ pub async fn find_by_message_id(
 /// - 后续 `count_by_chat` 不再统计这条（`source_chat_id = NULL`）
 ///
 /// 返回被影响的行数（≥0）。
-pub async fn clear_by_message_id(
-    pool: &DbPool,
-    source_message_id: &str,
-) -> AppResult<u64> {
+pub async fn clear_by_message_id(pool: &DbPool, source_message_id: &str) -> AppResult<u64> {
     let now = UnixMs::now();
     let result = sqlx::query(
         "UPDATE favorites \
@@ -144,11 +141,10 @@ pub async fn clear_by_message_id(
 }
 
 pub async fn count_by_chat(pool: &DbPool, chat_id: &str) -> AppResult<i64> {
-    let (count,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM favorites WHERE source_chat_id = ?",
-    )
-    .bind(chat_id)
-    .fetch_one(pool)
-    .await?;
+    let (count,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM favorites WHERE source_chat_id = ?")
+            .bind(chat_id)
+            .fetch_one(pool)
+            .await?;
     Ok(count)
 }

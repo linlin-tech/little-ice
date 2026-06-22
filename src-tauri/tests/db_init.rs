@@ -20,15 +20,20 @@ async fn init_creates_schema_and_enables_foreign_keys() {
         .await
         .expect("init_with_path should succeed");
 
-    // 3. 验证：四张表都存在
-    for table in &["chats", "messages", "favorites", "settings"] {
-        let (n,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
-        )
-        .bind(table)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    // 3. 验证：五张表都存在
+    for table in &[
+        "chats",
+        "messages",
+        "favorites",
+        "settings",
+        "chat_summaries",
+    ] {
+        let (n,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?")
+                .bind(table)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(n, 1, "expected table `{table}` to exist");
     }
 
@@ -38,6 +43,8 @@ async fn init_creates_schema_and_enables_foreign_keys() {
         "idx_messages_chat_id",
         "idx_favorites_updated_at",
         "idx_favorites_source_chat_id",
+        "idx_chat_summaries_chat_id",
+        "idx_chat_summaries_last_message_id",
     ] {
         let (n,): (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?")
@@ -90,24 +97,29 @@ async fn foreign_keys_are_actually_enforced() {
     let now = chrono::Utc::now().timestamp_millis();
     let chat_id = "chat-1";
 
-    sqlx::query("INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)")
-        .bind(chat_id)
-        .bind("hello")
-        .bind(now)
-        .bind(now)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO chats (id, title, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(chat_id)
+    .bind("hello")
+    .bind("role_default_assistant")
+    .bind(now)
+    .bind(now)
+    .execute(&pool)
+    .await
+    .unwrap();
 
-    sqlx::query("INSERT INTO messages (id, chat_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)")
-        .bind("msg-1")
-        .bind(chat_id)
-        .bind("user")
-        .bind("hi")
-        .bind(now)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO messages (id, chat_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind("msg-1")
+    .bind(chat_id)
+    .bind("user")
+    .bind("hi")
+    .bind(now)
+    .execute(&pool)
+    .await
+    .unwrap();
 
     // 校验 message 存在
     let (n,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM messages WHERE chat_id = ?")
@@ -129,18 +141,24 @@ async fn foreign_keys_are_actually_enforced() {
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(n, 0, "message should be CASCADE deleted when chat is deleted");
+    assert_eq!(
+        n, 0,
+        "message should be CASCADE deleted when chat is deleted"
+    );
 
     // 验证 favorites 的 ON DELETE SET NULL：插入 favorite → 删除 chat → favorite.source_chat_id 变 NULL
     let other_chat = "chat-2";
-    sqlx::query("INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)")
-        .bind(other_chat)
-        .bind("x")
-        .bind(now)
-        .bind(now)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO chats (id, title, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(other_chat)
+    .bind("x")
+    .bind("role_default_assistant")
+    .bind(now)
+    .bind(now)
+    .execute(&pool)
+    .await
+    .unwrap();
     sqlx::query("INSERT INTO favorites (id, title, content, source_chat_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
         .bind("fav-1")
         .bind("fav")
@@ -163,5 +181,8 @@ async fn foreign_keys_are_actually_enforced() {
             .fetch_one(&pool)
             .await
             .unwrap();
-    assert!(src.is_none(), "fav.source_chat_id should be SET NULL when chat is deleted");
+    assert!(
+        src.is_none(),
+        "fav.source_chat_id should be SET NULL when chat is deleted"
+    );
 }

@@ -50,9 +50,6 @@ pub async fn delete_role(state: State<'_, AppState>, id: String) -> AppResult<()
 
 #[tauri::command]
 #[specta]
-pub async fn get_role_by_chat_id(
-    state: State<'_, AppState>,
-    chat_id: String,
-) -> AppResult<Role> {
+pub async fn get_role_by_chat_id(state: State<'_, AppState>, chat_id: String) -> AppResult<Role> {
     crate::db::role::get_by_chat_id(&state.db, &chat_id).await
 }

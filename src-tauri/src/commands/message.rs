@@ -15,12 +15,13 @@
 //! 返回 `Ok(())` 表示成功；不存在时返回 `AppError::NotFound`。
 
 use serde::Serialize;
-use specta::specta;
 use specta::Type;
+use specta::specta;
 use tauri::Manager;
 use tauri::State;
 use tokio_util::sync::CancellationToken;
 
+use crate::ai::SummaryService;
 use crate::ai::events::emit_error;
 use crate::error::AppResult;
 use crate::models::{Message, MessageRole};
@@ -28,10 +29,7 @@ use crate::state::AppState;
 
 #[tauri::command]
 #[specta]
-pub async fn list_messages(
-    state: State<'_, AppState>,
-    chat_id: String,
-) -> AppResult<Vec<Message>> {
+pub async fn list_messages(state: State<'_, AppState>, chat_id: String) -> AppResult<Vec<Message>> {
     crate::db::message::list_by_chat(&state.db, &chat_id).await
 }
 
@@ -44,8 +42,9 @@ pub struct SendMessageResult {
 /// 发送消息：
 /// 1. 写 user message 到 DB
 /// 2. 在 DB 预创建一条空的 assistant message（拿到 assistantMessageId）
-/// 3. 异步触发 AI 流式生成
-/// 4. 返回 `{ userMessage }`
+/// 3. 根据 113 原则，透明地判断并生成摘要（用户无感）
+/// 4. 异步触发 AI 流式生成
+/// 5. 返回 `{ userMessage }`
 #[tauri::command]
 #[specta]
 pub async fn send_message(
@@ -59,15 +58,19 @@ pub async fn send_message(
         crate::db::message::create(&state.db, &chat_id, MessageRole::User, content).await?;
 
     // 2. 预创建 assistant 消息（content 留空，由流式任务回填）
-    let assistant_msg = crate::db::message::create(
-        &state.db,
-        &chat_id,
-        MessageRole::Assistant,
-        String::new(),
-    )
-    .await?;
+    let assistant_msg =
+        crate::db::message::create(&state.db, &chat_id, MessageRole::Assistant, String::new())
+            .await?;
 
-    // 3. 启动后台流任务
+    // 3. 113 原则：用户提交问题后、AI 回复前，透明地尝试生成摘要。
+    //    摘要失败不阻塞主对话流程，仅降级到已有摘要或原始上下文。
+    if let Err(e) =
+        SummaryService::maybe_summarize(&state.db, &state.ai, &chat_id, &user_msg.id).await
+    {
+        tracing::warn!(chat_id, error = %e, "maybe_summarize failed, continuing without new summary");
+    }
+
+    // 4. 启动后台流任务
     let cancel_token = CancellationToken::new();
     state
         .active_streams

@@ -22,6 +22,12 @@ pub enum AppError {
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
 
+    #[error("Summary generation failed: {0}")]
+    SummaryGenerationFailed(String),
+
+    #[error("Summary API timeout")]
+    SummaryTimeout,
+
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
 }

@@ -9,6 +9,7 @@ pub mod message;
 pub mod pool;
 pub mod role;
 pub mod settings;
+pub mod summary;
 
-pub use pool::{init, DbPool};
+pub use pool::{DbPool, init};
 pub use sqlx::SqlitePool;

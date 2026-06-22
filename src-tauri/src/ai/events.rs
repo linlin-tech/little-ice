@@ -124,6 +124,8 @@ pub fn classify_error(err: &AppError) -> String {
         }
         AppError::NotFound(_) => "unknown".to_string(),
         AppError::Validation(_) => "validation".to_string(),
+        AppError::SummaryTimeout => "timeout".to_string(),
+        AppError::SummaryGenerationFailed(_) => "model".to_string(),
         AppError::Database(_) | AppError::Internal(_) => "unknown".to_string(),
     }
 }

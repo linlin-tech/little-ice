@@ -7,5 +7,7 @@
 pub mod client;
 pub mod events;
 pub mod stream;
+pub mod summary;
 
 pub use client::AiClient;
+pub use summary::SummaryService;

@@ -77,15 +77,13 @@ pub async fn update(
     let new_responsibility = responsibility.unwrap_or(current.responsibility);
     let now = UnixMs::now();
 
-    sqlx::query(
-        "UPDATE roles SET name = ?, responsibility = ?, updated_at = ? WHERE id = ?",
-    )
-    .bind(&new_name)
-    .bind(&new_responsibility)
-    .bind(now)
-    .bind(id)
-    .execute(pool)
-    .await?;
+    sqlx::query("UPDATE roles SET name = ?, responsibility = ?, updated_at = ? WHERE id = ?")
+        .bind(&new_name)
+        .bind(&new_responsibility)
+        .bind(now)
+        .bind(id)
+        .execute(pool)
+        .await?;
 
     get(pool, id).await
 }
@@ -107,7 +105,10 @@ pub async fn delete(pool: &DbPool, id: &str) -> AppResult<()> {
         ));
     }
 
-    sqlx::query("DELETE FROM roles WHERE id = ?").bind(id).execute(pool).await?;
+    sqlx::query("DELETE FROM roles WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 

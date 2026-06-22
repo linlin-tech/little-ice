@@ -179,7 +179,7 @@ async fn favorite_crud_with_patch_roundtrip() {
     let pool = fresh_pool().await;
 
     // 手动创建（无 source_chat_id）
-    let f1 = favorite::create(&pool, "title1".into(), "body1".into(), None)
+    let f1 = favorite::create(&pool, "title1".into(), "body1".into(), None, None)
         .await
         .unwrap();
     assert!(f1.source_chat_id.is_none());
@@ -187,9 +187,15 @@ async fn favorite_crud_with_patch_roundtrip() {
     // 从 chat 收藏（有 source_chat_id）
     let c = chat::create(&pool, "ch".into()).await.unwrap();
     sleep_one_ms().await;
-    let f2 = favorite::create(&pool, "from-chat".into(), "x".into(), Some(c.id.clone()))
-        .await
-        .unwrap();
+    let f2 = favorite::create(
+        &pool,
+        "from-chat".into(),
+        "x".into(),
+        Some(c.id.clone()),
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(f2.source_chat_id.as_deref(), Some(c.id.as_str()));
 
     // list_all 倒序（updated_at DESC）：f2 在前
@@ -251,16 +257,23 @@ async fn favorite_count_by_chat_filters_correctly() {
             format!("c1-fav-{i}"),
             "x".into(),
             Some(c1.id.clone()),
+            None,
         )
         .await
         .unwrap();
     }
     // c2: 1 个收藏
-    favorite::create(&pool, "c2-fav".into(), "x".into(), Some(c2.id.clone()))
-        .await
-        .unwrap();
+    favorite::create(
+        &pool,
+        "c2-fav".into(),
+        "x".into(),
+        Some(c2.id.clone()),
+        None,
+    )
+    .await
+    .unwrap();
     // 手动创建（无 source）：不计入任何 chat
-    favorite::create(&pool, "manual".into(), "x".into(), None)
+    favorite::create(&pool, "manual".into(), "x".into(), None, None)
         .await
         .unwrap();
 

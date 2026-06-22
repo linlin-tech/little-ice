@@ -7,6 +7,7 @@ mod favorite;
 mod message;
 mod role;
 mod settings;
+mod summary;
 mod timestamp;
 
 pub use chat::Chat;
@@ -14,4 +15,5 @@ pub use favorite::Favorite;
 pub use message::{Message, MessageRole};
 pub use role::Role;
 pub use settings::Settings;
+pub use summary::{ChatSummary, SummaryContext};
 pub use timestamp::UnixMs;

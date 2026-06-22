@@ -102,14 +102,12 @@ pub async fn delete_pair(
     let mut tx = pool.begin().await?;
 
     // 1) 校验两条消息都属于该 chat（防止误删其他 chat 的消息）
-    let rows = sqlx::query(
-        "SELECT id FROM messages WHERE chat_id = ? AND id IN (?, ?)",
-    )
-    .bind(chat_id)
-    .bind(user_id)
-    .bind(assistant_id)
-    .fetch_all(&mut *tx)
-    .await?;
+    let rows = sqlx::query("SELECT id FROM messages WHERE chat_id = ? AND id IN (?, ?)")
+        .bind(chat_id)
+        .bind(user_id)
+        .bind(assistant_id)
+        .fetch_all(&mut *tx)
+        .await?;
 
     if rows.len() < 2 {
         return Err(AppError::NotFound(format!(
@@ -184,4 +182,60 @@ pub async fn delete_orphan_assistant(
 
     tx.commit().await?;
     Ok(())
+}
+
+/// 统计某 chat 中 user 消息的数量（即当前对话轮次，从 1 开始）。
+pub async fn count_user_messages(pool: &DbPool, chat_id: &str) -> AppResult<u32> {
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM messages WHERE chat_id = ? AND role = 'user'")
+            .bind(chat_id)
+            .fetch_one(pool)
+            .await?;
+    Ok(count as u32)
+}
+
+/// 统计某 chat 中 id 不大于给定 message_id 的 user 消息数量。
+///
+/// 用于把 `last_message_id` 映射为摘要覆盖的轮次号。
+pub async fn count_user_messages_up_to_id(
+    pool: &DbPool,
+    chat_id: &str,
+    message_id: &str,
+) -> AppResult<u32> {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM messages WHERE chat_id = ? AND role = 'user' AND id <= ?",
+    )
+    .bind(chat_id)
+    .bind(message_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(count as u32)
+}
+
+/// 查询指定消息之前的最近若干轮完整对话。
+///
+/// `round_count` 为轮次数，每轮包含 user + assistant 两条消息，
+/// 因此最多返回 `round_count * 2` 条消息，按时间正序排列。
+pub async fn list_recent_complete_rounds_before(
+    pool: &DbPool,
+    chat_id: &str,
+    before_message_id: &str,
+    round_count: usize,
+) -> AppResult<Vec<Message>> {
+    let limit = (round_count * 2) as i64;
+    let mut messages = sqlx::query_as::<_, Message>(
+        "SELECT id, chat_id, role, content, created_at \
+         FROM messages \
+         WHERE chat_id = ? AND id < ? \
+         ORDER BY id DESC \
+         LIMIT ?",
+    )
+    .bind(chat_id)
+    .bind(before_message_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    messages.reverse();
+    Ok(messages)
 }

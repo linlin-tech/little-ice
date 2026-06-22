@@ -3,7 +3,7 @@
 //! 不依赖 Tauri runtime；只测纯函数（事件名 / payload 序列化 / classify_error）。
 
 use little_ice_lib::ai::events::{
-    classify_error, AI_STREAM_CHUNK, AI_STREAM_END, AI_STREAM_ERROR, AI_STREAM_START,
+    AI_STREAM_CHUNK, AI_STREAM_END, AI_STREAM_ERROR, AI_STREAM_START, classify_error,
 };
 use little_ice_lib::ai::events::{AiErrorPayload, AiStreamChunk, AiStreamEnd, AiStreamError};
 use little_ice_lib::error::AppError;

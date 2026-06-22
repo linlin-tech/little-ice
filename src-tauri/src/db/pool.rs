@@ -9,8 +9,8 @@
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use tauri::Manager;
 
 use crate::error::{AppError, AppResult};

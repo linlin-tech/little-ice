@@ -98,6 +98,44 @@ impl AiClient {
 
         Ok(rx)
     }
+
+    /// 发起非流式 chat completion，直接返回完整回复文本。
+    ///
+    /// 用于摘要生成等需要一次性拿到结果的场景。
+    pub async fn complete(&self, api_key: &str, messages: &[ChatMessage]) -> AppResult<String> {
+        let request = ChatRequest {
+            model: "deepseek-chat",
+            messages,
+            stream: false,
+        };
+
+        let resp = self
+            .http
+            .post(DEEPSEEK_API_URL)
+            .bearer_auth(api_key)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| match e.status() {
+                Some(s) if s.as_u16() == 401 => AppError::Ai("api_key".into()),
+                _ => AppError::Network(e),
+            })?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(AppError::Ai(format!("HTTP {}: {}", status, body)));
+        }
+
+        let body = resp.json::<CompletionResponse>().await?;
+        let content = body
+            .choices
+            .into_iter()
+            .next()
+            .map(|c| c.message.content)
+            .unwrap_or_default();
+        Ok(content)
+    }
 }
 
 #[derive(Serialize)]
@@ -127,4 +165,19 @@ struct SseChoice {
 #[derive(Deserialize)]
 struct SseDelta {
     content: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CompletionResponse {
+    choices: Vec<CompletionChoice>,
+}
+
+#[derive(Deserialize)]
+struct CompletionChoice {
+    message: CompletionMessage,
+}
+
+#[derive(Deserialize)]
+struct CompletionMessage {
+    content: String,
 }

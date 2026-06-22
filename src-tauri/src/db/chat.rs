@@ -16,14 +16,16 @@ pub async fn create(pool: &DbPool, title: String) -> AppResult<Chat> {
         created_at: now,
         updated_at: now,
     };
-    sqlx::query("INSERT INTO chats (id, title, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
-        .bind(&chat.id)
-        .bind(&chat.title)
-        .bind(&chat.role_id)
-        .bind(chat.created_at)
-        .bind(chat.updated_at)
-        .execute(pool)
-        .await?;
+    sqlx::query(
+        "INSERT INTO chats (id, title, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&chat.id)
+    .bind(&chat.title)
+    .bind(&chat.role_id)
+    .bind(chat.created_at)
+    .bind(chat.updated_at)
+    .execute(pool)
+    .await?;
     Ok(chat)
 }
 

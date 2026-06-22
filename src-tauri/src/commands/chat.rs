@@ -29,11 +29,7 @@ pub async fn get_chat(state: State<'_, AppState>, id: String) -> AppResult<Chat>
 
 #[tauri::command]
 #[specta]
-pub async fn rename_chat(
-    state: State<'_, AppState>,
-    id: String,
-    title: String,
-) -> AppResult<Chat> {
+pub async fn rename_chat(state: State<'_, AppState>, id: String, title: String) -> AppResult<Chat> {
     let chat = crate::db::chat::rename(&state.db, &id, title).await?;
     Ok(chat)
 }

@@ -87,7 +87,7 @@ pub fn run() {
 }
 
 fn init_tracing() {
-    use tracing_subscriber::{fmt, EnvFilter};
+    use tracing_subscriber::{EnvFilter, fmt};
 
     let _ = fmt()
         .with_max_level(tracing::Level::INFO)
