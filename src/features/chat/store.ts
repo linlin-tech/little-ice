@@ -38,10 +38,18 @@
  * 到 `pendingAssistant`，等 `sendMessage` 返回 userMsg 时再 append userMsg + 占位。
  * chunks / end 在 pending 期间累积到 `pendingAssistant.placeholder.content`，
  * 后续追加时一次写入。
+ *
+ * ## 消息删除（V1.5）
+ * `deleteMessage(messageId)` 删除一条 AI 回复（连同配对 user 提问）：
+ * - 乐观更新：先从 messages 数组移除两条（user + assistant），UI 立刻反映
+ * - 后端 invoke `delete_message`；失败时**回滚**（用乐观前的快照 set 回去）
+ * - 通知 favoriteStore 本地解除 source 指针（让 Star 图标立刻变回空心）
+ * - 刷新 favoriteCount 徽章
  */
 
 import { create } from "zustand";
 
+import { useFavoriteStore } from "@/features/favorite/store";
 import { aiEvents } from "@/lib/events";
 import { tauri } from "@/lib/tauri";
 import type {
@@ -102,6 +110,9 @@ interface ChatState {
 
   sendMessage: (content: string) => Promise<void>;
   stopGeneration: () => Promise<void>;
+
+  /** V1.5：删除一条 AI 回复（连同配对的 user 提问）；乐观更新 + 失败回滚 */
+  deleteMessage: (assistantMessageId: Id) => Promise<void>;
 
   loadFavoriteCount: (chatId: Id) => Promise<void>;
 
@@ -277,6 +288,92 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       // ai-stream-end 事件会带 stopped=true 到达，那时再切 aiState
     } catch (e) {
       set({ error: toMessage(e) });
+    }
+  },
+
+  // ===== 消息删除（V1.5）=====
+
+  /**
+   * 删除一条 AI 回复消息（连同配对的 user 提问）。
+   *
+   * 流程（乐观更新）：
+   * 1. 找到 assistantMessageId 的索引 + 配对的 user message
+   * 2. 立刻从 messages 中移除这两条（UI 即时反馈）
+   * 3. 调用后端 `delete_message`：
+   *    - 成功 → 通知 favoriteStore 移除关联收藏，刷新 favoriteCount
+   *    - 失败 → 回滚到 step 1 的快照
+   *
+   * 边界：
+   * - 流式期间（streamingMessageId === assistantMessageId）：前端应禁止调用（UI 层 disable）
+   * - 不存在（id 不在 messages 中）：不操作，warning log
+   * - Chat 仍保留（即便删空）
+   */
+  deleteMessage: async (assistantMessageId) => {
+    const state = get();
+    const chatId = state.currentChatId;
+    if (chatId === null) {
+      set({ error: "未选中任何 chat" });
+      return;
+    }
+
+    // 找 assistant 消息索引
+    const assistantIdx = state.messages.findIndex(
+      (m) => m.id === assistantMessageId,
+    );
+    if (assistantIdx < 0) {
+      console.warn(
+        `[deleteMessage] assistantMessageId ${assistantMessageId} not found in messages`,
+      );
+      return;
+    }
+    const assistant = state.messages[assistantIdx]!;
+    if (assistant.role !== "assistant") {
+      console.warn(
+        `[deleteMessage] message ${assistantMessageId} is not an assistant message`,
+      );
+      return;
+    }
+
+    // 找紧邻的前一条 user message（理论上一定存在）
+    // 倒序往前找最近的、role === 'user' 的消息
+    let userIdx = -1;
+    for (let i = assistantIdx - 1; i >= 0; i--) {
+      const m = state.messages[i]!;
+      if (m.role === "user") {
+        userIdx = i;
+        break;
+      }
+    }
+    const userMsg = userIdx >= 0 ? state.messages[userIdx]! : null;
+
+    // 流式保护：删除 streaming 中的消息不允许
+    if (state.streamingMessageId === assistantMessageId) {
+      console.warn(`[deleteMessage] cannot delete a streaming message`);
+      set({ error: "正在生成中，无法删除" });
+      return;
+    }
+
+    // ===== 乐观更新：先从 messages 中移除两条 =====
+    const snapshot = state.messages;
+    const newMessages = state.messages.filter(
+      (m) => m.id !== assistantMessageId && (userMsg === null || m.id !== userMsg.id),
+    );
+    set({ messages: newMessages, error: null });
+
+    // ===== 调后端 =====
+    try {
+      await tauri.deleteMessage(chatId, assistantMessageId);
+      // 成功：通知 favoriteStore 解除 source 指针（让 Star 立刻变空心）
+      useFavoriteStore.getState().removeByMessageId(assistantMessageId);
+      // 刷新徽章（count_by_chat 会因 source_chat_id 变 NULL 而下降）
+      void get().loadFavoriteCount(chatId);
+    } catch (e) {
+      // 失败：回滚
+      console.error(`[deleteMessage] failed, rolling back:`, e);
+      set({
+        messages: snapshot,
+        error: `删除失败：${toMessage(e)}`,
+      });
     }
   },
 

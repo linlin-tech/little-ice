@@ -1,4 +1,4 @@
-//! AI 流式任务：SSE → 事件 emit → DB 持久化
+    //! AI 流式任务：SSE → 事件 emit → DB 持久化
 
 use tauri::AppHandle;
 use tokio_util::sync::CancellationToken;
@@ -9,6 +9,7 @@ use crate::ai::events::{
 };
 use crate::db::DbPool;
 use crate::error::{AppError, AppResult};
+use crate::models::Message;
 
 pub async fn run_stream(
     app: &AppHandle,
@@ -32,16 +33,28 @@ pub async fn run_stream(
     // 3. 读取该 chat 的历史 messages（构建上下文）
     let history = crate::db::message::list_by_chat(db, chat_id).await?;
 
-    // 4. 构造上下文：system prompt + history（跳过当前刚创建的 assistant 占位消息）
-    let mut context: Vec<ChatMessage> = Vec::with_capacity(history.len() + 1);
+    // 4. 构造上下文：system prompt + 最近 3 条历史消息（跳过当前刚创建的 assistant 占位消息；按时序）
+    const HISTORY_LIMIT: usize = 3;
+    let recent: Vec<&Message> = history
+        .iter()
+        .filter(|m| m.id != assistant_message_id)
+        .rev()
+        .take(HISTORY_LIMIT)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    let mut context: Vec<ChatMessage> = Vec::with_capacity(recent.len() + 1);
     context.push(ChatMessage {
         role: "system".to_string(),
         content: role.responsibility,
     });
-    context.extend(history.iter().filter(|m| m.id != assistant_message_id).map(|m| ChatMessage {
-        role: m.role.as_protocol_str().to_string(),
-        content: m.content.clone(),
-    }));
+    for m in recent {
+        context.push(ChatMessage {
+            role: m.role.as_protocol_str().to_string(),
+            content: m.content.clone(),
+        });
+    }
 
     // 5. 发送 Start 事件
     emit_start(

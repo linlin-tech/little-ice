@@ -6,10 +6,13 @@
  * - `assistant` → 左对齐 + 无气泡（透明背景），Markdown 渲染
  * - `system`  → 居中 + 灰色无背景
  *
- * AI 消息 hover 时显示 Copy + Favorite（§8.2）两个 IconButton。
- * Copy → navigator.clipboard；Favorite → 创建 favorite（调 favorite store）。
+ * AI 消息 hover 时显示 Copy + Favorite + Delete（§8.2 / V1.5）三个 IconButton。
+ * - Copy    → navigator.clipboard
+ * - Favorite → 创建/取消收藏（调 favorite store）
+ * - Delete  → 删除该回合（user + assistant），调 chatStore.deleteMessage
  *
- * 流式中（`streaming === true`）的 assistant 消息显示"光标"动画。
+ * 流式中（`streaming === true`）的 assistant 消息显示"光标"动画，
+ * **且删除按钮禁用**（避免删除正在生成的半成品）。
  *
  * ## 性能（流式滚动卡顿修复）
  *
@@ -20,10 +23,10 @@
  * - 非流式消息（streaming=false 且 message 引用不变）→ React.memo 直接 bail out，不重渲染
  * - 流式消息（streaming=true 且 message.content 随 chunk 增长）→ 必然重渲染（必要）
  *
- * 内部 useChatStore 仅取函数引用（loadFavoriteCount），函数引用稳定不触发额外渲染。
+ * 内部 useChatStore 仅取函数引用（loadFavoriteCount / deleteMessage），函数引用稳定不触发额外渲染。
  */
 
-import { Check, Copy, Star } from "lucide-react";
+import { Check, Copy, Star, Trash2 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 
 import { useChatStore } from "@/features/chat/store";
@@ -38,7 +41,7 @@ import { MessageMarkdown } from "./MessageMarkdown";
 
 interface MessageItemProps {
   message: Message;
-  /** 当前 assistant 消息是否正在流式接收（控制光标动画 + Markdown 实时更新） */
+  /** 当前 assistant 消息是否正在流式接收（控制光标动画 + Markdown 实时更新 + 禁用删除） */
   streaming: boolean;
 }
 
@@ -94,6 +97,7 @@ function AssistantMessage({
   const deleteFavorite = useFavoriteStore((s) => s.deleteFavorite);
   // 只取函数引用，函数引用稳定不触发组件重渲染
   const loadFavoriteCount = useChatStore((s) => s.loadFavoriteCount);
+  const deleteMessage = useChatStore((s) => s.deleteMessage);
   const [favorited, setFavorited] = useState<{ id: string } | null>(null);
 
   // 检查该消息是否已被收藏
@@ -147,6 +151,22 @@ function AssistantMessage({
     }
   };
 
+  /**
+   * V1.5：删除当前 AI 回复（连同配对 user 提问）。
+   * 流式期间禁用（由 streaming 决定 button disabled）。
+   */
+  const onDelete = () => {
+    if (streaming) return; // 流式中禁止删除
+    void (async () => {
+      const confirmed = await confirmDestructive(
+        "删除这条消息？\n将同时删除用户提问和 AI 回复",
+      );
+      if (confirmed) {
+        await deleteMessage(message.id);
+      }
+    })();
+  };
+
   return (
     <div
       // §14.2：左对齐 / 无气泡 / line-height 1.9
@@ -169,7 +189,7 @@ function AssistantMessage({
           )}
         </div>
 
-        {/* hover 才显示的 Copy + Favorite（§8.2，opacity 0 → 100） */}
+        {/* hover 才显示的 Copy + Favorite + Delete（§8.2 + V1.5） */}
         <div
           className={cn(
             "absolute -bottom-1 left-0 flex items-center gap-1",
@@ -200,6 +220,22 @@ function AssistantMessage({
               fill={favorited ? "currentColor" : "none"}
             />
           </button>
+          {/* V1.5：删除按钮 — 流式期间禁用 */}
+          <button
+            type="button"
+            aria-label="删除这条消息"
+            onClick={onDelete}
+            disabled={streaming}
+            title={streaming ? "正在生成中，无法删除" : "删除这条消息"}
+            className={cn(
+              "inline-flex h-6 w-6 items-center justify-center rounded-md transition-colors",
+              streaming
+                ? "cursor-not-allowed text-muted/40"
+                : "text-muted hover:bg-error/10 hover:text-error",
+            )}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </div>
@@ -223,7 +259,7 @@ function SystemMessage({
 }
 
 // =============================================================
-// ActionIcon：hover 操作（Copy / Favorite）—— active 态自动变色
+// ActionIcon：hover 操作（Copy）—— active 态自动变色
 // =============================================================
 
 interface ActionIconProps {

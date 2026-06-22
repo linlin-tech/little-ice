@@ -60,6 +60,7 @@ pub fn run() {
             // ===== Message（§4.2）=====
             crate::commands::message::list_messages,
             crate::commands::message::send_message,
+            crate::commands::message::delete_message,
             // ===== AI 控制（§4.3）=====
             crate::commands::ai::stop_generation,
             // ===== Favorite（§4.4）=====

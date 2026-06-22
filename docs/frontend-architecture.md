@@ -204,8 +204,15 @@ export type DraftState = 'editing' | 'cached';
 |---|---|---|---|
 | `list_messages` | `{ chatId: Id }` | `Message[]` | 按 `createdAt` 升序 |
 | `send_message` | `{ chatId: Id, content: string }` | `{ userMessage: Message }` | 写用户消息；**异步**触发 AI 流（见 §5） |
+| `delete_message` | `{ chatId: Id, assistantId: Id }` | `void` | **V1.5**：事务内删一对配对消息（user+assistant），解绑 favorites 的 `source_message_id`（保留收藏内容）；返回 `NotFound` 表示 id 不存在 |
 
 > AI 助手的回复**不通过命令返回**，而是通过事件流（§5）。`send_message` 只保证用户消息已落库。
+>
+> `delete_message` 是 V1.5 引入的 **Message 级删除**（与 `delete_chat` 互补）：
+> - 一次删除一个"回合"（user 提问 + assistant 回复），而不是整个 Chat
+> - 收藏关联**解绑而非删除**（保留收藏本身，用户可继续手动编辑）
+> - Chat 头部 ⭐ 徽章由 `count_by_chat` 实时统计，会自然下降
+> - 后端 `delete_message` 不删除 Chat，即便删空也保留 Chat 记录
 
 ### 4.3 AI 控制
 
@@ -396,6 +403,9 @@ interface ChatState {
 
   loadFavoriteCount: (chatId: Id) => Promise<void>;
 
+  /** V1.5：删除一条 AI 回复（连同配对的 user 提问）；乐观更新 + 失败回滚 */
+  deleteMessage: (assistantMessageId: Id) => Promise<void>;
+
   // event handlers (在 main.tsx 中注册)
   onStreamStart: (p: AiStreamStart) => void;
   onStreamChunk: (p: AiStreamChunk) => void;
@@ -407,6 +417,13 @@ interface ChatState {
 **关键不变量**：
 - `streamingMessageId` 与 `messages` 数组中最后一条 `assistant` 消息的 id 一致
 - 切换 `currentChatId` 时清空 `messages`、`aiState = 'idle'`、`streamingMessageId = null`
+- 流式期间（`streamingMessageId !== null`）不允许删除该 message（UI 禁用）
+
+**`deleteMessage` 语义（V1.5）**：
+- 传入被点击的 AI 回复 `assistantMessageId`
+- 乐观更新：立刻从 `messages` 移除两条（assistant + 紧邻的前一条 user）
+- 调后端 `delete_message`（§4.2）：成功 → 通知 `favoriteStore.removeByMessageId` + 刷新 `favoriteCount`；失败 → 回滚到原始 messages
+- 调用后 UI 自然滚动到原位置的前一条消息（follow-mode 重计算）
 
 ### 6.5 favoriteStore — `src/features/favorite/store.ts`
 
@@ -431,10 +448,20 @@ interface FavoriteState {
   manualSave: () => Promise<void>;
   deleteFavorite: (id: Id) => Promise<void>;   // 仅列表 hover 区触发
 
+  /** V1.5：消息删除后本地解除 favorite 的 source 指针（无后端调用） */
+  removeByMessageId: (sourceMessageId: Id) => void;
+
   // utility
   clearError: () => void;
 }
 ```
+
+**`removeByMessageId` 语义（V1.5）**：
+- 由 `chatStore.deleteMessage` 在后端删除成功后调用
+- **仅本地同步**：遍历 `favorites`，找到 `sourceMessageId` 匹配的项，把 `sourceChatId` + `sourceMessageId` 都置 null
+- 不调后端（后端事务已处理）
+- 不删除收藏内容（用户可继续手动编辑）
+- `currentFavorite` 命中时同步更新
 
 ---
 
@@ -493,7 +520,7 @@ function transitionAiState(
 
 ### 7.4 确认对话框（删除操作）
 
-UX 文档第 6 章：删除 Chat / Favorite / 取消收藏需确认。
+UX 文档第 6 章：删除 Chat / Message / Favorite / 取消收藏需确认。
 
 封装 `src/components/common/ConfirmDialog.tsx`，使用 @radix-ui/react-dialog 实现 shadcn/ui 风格 Dialog：
 
@@ -507,6 +534,7 @@ export async function confirmDestructive(message: string): Promise<boolean> { ..
 
 **触发位置**：
 - Chat 删除：`ChatList` 列表项 hover → 删除图标
+- **Message 删除（V1.5）**：`MessageItem` 中 AI 消息 hover → 删除图标（`confirmDestructive("删除这条消息？\n将同时删除用户提问和 AI 回复")`）
 - Favorite 删除：**`FavoriteList` 列表项 hover → 删除图标**（详情页无此入口，避免与保存误触）
 - 取消收藏：`MessageItem` 中已收藏的 AI 消息点击收藏图标
 
@@ -584,7 +612,8 @@ export const aiEvents = {
 - `ChatContent`：
   - `Header`：左侧当前 chat 标题（点击进入重命名模式） + 右侧收藏数徽章 `⭐ N`（N=0 时空心灰色，N>0 时实心蓝色）。**不显示**"收藏"图标按钮和"更多"图标按钮。
   - `MessageList`：倒序/正序渲染（最新在底），按 `role` 区分样式
-  - `MessageItem`：用户右对齐、AI 左对齐、system 居中灰；AI 消息 hover 显示 Copy + Favorite 图标按钮；收藏状态实时更新（空心/实心）
+  - `MessageItem`：用户右对齐、AI 左对齐、system 居中灰；AI 消息 hover 显示 **Copy + Favorite + Delete（V1.5）** 三个 IconButton
+    - Delete：流式期间 disabled；点击 → `confirmDestructive` → `chatStore.deleteMessage`
   - `ChatInput`：textarea（rows=3）+ Send / Stop 切换按钮；宽度与 Content Panel 一致
   - 状态指示：`aiState` 决定按钮文案与 loading 动画
 - `MessageMarkdown`：Markdown 渲染，使用 `.markdown-body` 全局样式类
@@ -601,6 +630,7 @@ export const aiEvents = {
   - `Markdown Preview`：实时渲染 Markdown，支持拖动分割线调整编辑/预览高度（各占50%，最小高度20%）
   - `SaveButton`：手动保存按钮（isDirty=false 时 disabled 灰色，isDirty=true 时 Primary 可点击；保存中只显示 spinner）
   - 删除入口仅在 `FavoriteList` 列表项 hover 区
+  - **V1.5**：`sourceMessageId` 已被消息删除置 null 时，详情页仍可正常编辑收藏本身（仅失去"来源跳转"能力）
 
 ### 8.4 Settings
 
@@ -683,7 +713,7 @@ import './styles.css';
 
 **包含**：Chat、Favorite、Settings
 
-**不包含**：Project / Folder / Search / Tag / Category / Knowledge Graph / Mind Map / Workspace / Multi Window / System Tray / Native Menu / Import / Export / Multi Theme / Multi Model / Agent Workflow
+**不包含**：Project / Folder / Search / Tag / Category / Knowledge Graph / Mind Map / Workspace / Multi Window / System Tray / Native Menu / Import / Export / Multi Theme / Multi Model / Agent Workflow / **批量删除**
 
 **遇到需求方要求加新模块 → 先回看本文档与 UX 文档，不在范围内的功能需要先扩展两份文档。**
 

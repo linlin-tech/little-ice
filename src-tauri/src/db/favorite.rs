@@ -118,6 +118,31 @@ pub async fn find_by_message_id(
     .await?;
     Ok(fav)
 }
+
+/// 解绑指定消息来源的收藏（用于删除消息时清理关联）。
+///
+/// 设计：当源消息被删除时，**只解绑来源指针，不删除收藏内容**。
+/// - 收藏本身保留（用户可继续手动编辑该收藏）
+/// - 后续 `count_by_chat` 不再统计这条（`source_chat_id = NULL`）
+///
+/// 返回被影响的行数（≥0）。
+pub async fn clear_by_message_id(
+    pool: &DbPool,
+    source_message_id: &str,
+) -> AppResult<u64> {
+    let now = UnixMs::now();
+    let result = sqlx::query(
+        "UPDATE favorites \
+         SET source_message_id = NULL, source_chat_id = NULL, updated_at = ? \
+         WHERE source_message_id = ?",
+    )
+    .bind(now)
+    .bind(source_message_id)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected())
+}
+
 pub async fn count_by_chat(pool: &DbPool, chat_id: &str) -> AppResult<i64> {
     let (count,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM favorites WHERE source_chat_id = ?",

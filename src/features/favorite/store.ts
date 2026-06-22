@@ -16,6 +16,13 @@
  * ## FavoritePatch 字段语义
  * specta v2 把 `Option<String>` 渲染为 `string | null`（非可选）—— 调用方必须
  * 显式传 `null` 表达"不更新"（Rust 端 `patch.title.unwrap_or(current.title)` 语义）。
+ *
+ * ## 消息删除时的本地同步（V1.5）
+ * `removeByMessageId(sourceMessageId)` 由 chatStore.deleteMessage 在成功后调用：
+ * - 仅本地状态同步（不调后端 — 后端已在事务中把 `source_message_id` 置 NULL）
+ * - 解绑该 message 的收藏（即 sourceMessageId 字段置 null）
+ * - 删除当前选中的、且 source 为该 message 的 favorite（前端缓存一致）
+ * - **不**影响 `favorites` 列表内容（保留收藏本身，用户可继续编辑）
  */
 
 import { create } from "zustand";
@@ -60,6 +67,9 @@ interface FavoriteState {
   manualSave: () => Promise<void>;
   /** V5.3：仅列表 hover 区触发 */
   deleteFavorite: (id: Id) => Promise<void>;
+
+  /** V1.5：消息删除后本地解除 favorite 的 source 指针（无后端调用） */
+  removeByMessageId: (sourceMessageId: Id) => void;
 
   // ===== utility =====
   clearError: () => void;
@@ -222,6 +232,44 @@ export const useFavoriteStore = create<FavoriteState>()((set, get) => ({
     } finally {
       set({ isSaving: false });
     }
+  },
+
+  // ===== 本地同步：消息删除后解除 source 指针（V1.5）=====
+
+  /**
+   * 由 chatStore.deleteMessage 在后端删除成功后调用。
+   *
+   * 行为：
+   * 1. 遍历 favorites：找到 `sourceMessageId === sourceMessageId` 的项
+   *    - 把它的 `sourceChatId` 和 `sourceMessageId` 都置 null（与后端事务保持一致）
+   * 2. 若其中一项正好是 currentFavorite，同步更新 currentFavorite 引用
+   *
+   * 不调后端（后端事务已处理），不删除收藏内容（用户可继续编辑）。
+   */
+  removeByMessageId: (sourceMessageId) => {
+    set((s) => {
+      let currentTouched = false;
+      const nextFavorites = s.favorites.map((f) => {
+        if (f.sourceMessageId === sourceMessageId) {
+          if (s.currentFavoriteId === f.id) currentTouched = true;
+          return {
+            ...f,
+            sourceChatId: null,
+            sourceMessageId: null,
+          };
+        }
+        return f;
+      });
+      const nextCurrent =
+        currentTouched && s.currentFavorite !== null
+          ? {
+              ...s.currentFavorite,
+              sourceChatId: null,
+              sourceMessageId: null,
+            }
+          : s.currentFavorite;
+      return { favorites: nextFavorites, currentFavorite: nextCurrent };
+    });
   },
 
   // ===== utility =====

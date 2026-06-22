@@ -85,6 +85,20 @@ function sendMessage(
   return invoke<SendMessageResult>("send_message", { chatId, content });
 }
 
+/**
+ * `delete_message({ chatId, assistantId }) -> void`
+ *
+ * 删除一条 AI 回复（连同配对的 user 提问一起）。后端在事务内：
+ * 1. 找配对的 user message
+ * 2. 解绑 favorites 的 `source_message_id`（保留收藏内容）
+ * 3. 删两条 messages
+ *
+ * 不存在时返回 `NotFound` 错误。
+ */
+function deleteMessage(chatId: string, assistantId: string): Promise<void> {
+  return invoke<void>("delete_message", { chatId, assistantId });
+}
+
 // =============================================================
 // AI 控制（§4.3）
 // =============================================================
@@ -213,6 +227,7 @@ export const tauri = {
   // Message
   listMessages,
   sendMessage,
+  deleteMessage,
   // AI
   stopGeneration,
   // Favorite
