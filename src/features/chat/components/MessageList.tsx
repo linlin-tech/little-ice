@@ -50,6 +50,9 @@ export function MessageList(): React.JSX.Element {
 
   // 找到最近的外层 overflow-y-auto 滚动容器（ChatContent 的 .scroll-area）
   useEffect(() => {
+    // 切对话后默认跟随到底部，让用户直接看到最新讨论内容
+    followModeRef.current = true;
+
     const findScrollParent = (
       el: HTMLElement | null,
     ): HTMLElement | null => {
