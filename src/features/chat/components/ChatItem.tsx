@@ -24,12 +24,12 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useChatStore } from "@/features/chat/store";
+import { useTreeViewStore } from "@/features/tree/store";
 import { useRoleStore } from "@/features/role/store";
 import { formatRelativeTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Chat, Role } from "@/types/models";
 
-import { confirmDestructive } from "@/components/common/ConfirmDialog";
 
 interface MenuPosition {
   top: number;
@@ -51,7 +51,6 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
   const selectedChatId = useChatStore((s) => s.currentChatId);
   const selectChat = useChatStore((s) => s.selectChat);
   const renameChat = useChatStore((s) => s.renameChat);
-  const deleteChat = useChatStore((s) => s.deleteChat);
   const setChatRole = useChatStore((s) => s.setChatRole);
 
   const roles = useRoleStore((s) => s.roles);
@@ -151,6 +150,8 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
       return;
     }
     await renameChat(chat.id, next);
+    // 同步 treeViewStore（保持树图缓存一致）
+    await useTreeViewStore.getState().renameNode(chat.id, next);
   };
 
   const cancelEdit = () => {
@@ -161,12 +162,14 @@ export function ChatItem({ chat }: ChatItemProps): React.JSX.Element {
   const onDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuOpen(false);
-    const ok = await confirmDestructive("要删除该对话吗？");
-    if (ok) await deleteChat(chat.id);
+    // 走 treeViewStore 的删除确认对话框（递归删除子树 + 关联对话）
+    useTreeViewStore.getState().requestDelete(chat.id);
   };
 
   const onSetRole = async (role: Role) => {
     await setChatRole(chat.id, role.id);
+    // 同步 treeViewStore
+    await useTreeViewStore.getState().setNodeRole(chat.id, role.id);
     setMenuOpen(false);
     setRoleSubOpen(false);
   };

@@ -81,6 +81,16 @@ pub fn run() {
             // ===== Settings（§4.5）=====
             crate::commands::settings::get_settings,
             crate::commands::settings::set_api_key,
+            // ===== TreeNode（思维树图）=====
+            crate::commands::tree_node::create_tree_node,
+            crate::commands::tree_node::list_tree_roots,
+            crate::commands::tree_node::list_tree_children,
+            crate::commands::tree_node::list_all_tree_nodes,
+            crate::commands::tree_node::get_tree_node,
+            crate::commands::tree_node::rename_tree_node,
+            crate::commands::tree_node::set_tree_node_role,
+            crate::commands::tree_node::delete_tree_node,
+            crate::commands::tree_node::move_tree_node,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

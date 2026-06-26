@@ -10,14 +10,18 @@
 import { MessageSquare, Plus } from "lucide-react";
 
 import { useChatStore } from "@/features/chat/store";
+import { useTreeViewStore } from "@/features/tree/store";
 import { useDraftStore } from "@/stores/draftStore";
 
 export function ChatToolbar(): React.JSX.Element {
   const chats = useChatStore((s) => s.chats);
   const onNewChat = async () => {
-    const chat = await useChatStore.getState().createChat("新对话");
-    if (chat !== null) {
-      useChatStore.getState().selectChat(chat.id);
+    // 通过 treeViewStore 创建根节点（同时写入 chats + tree_nodes，保持一致）
+    const node = await useTreeViewStore.getState().createNode("新对话", null);
+    if (node !== null) {
+      // 刷新 chatStore 的 chats 列表（拿到新记录）
+      await useChatStore.getState().loadChats();
+      useChatStore.getState().selectChat(node.id);
       useDraftStore.getState().clearDraft();
     }
   };

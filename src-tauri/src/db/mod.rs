@@ -10,6 +10,7 @@ pub mod pool;
 pub mod role;
 pub mod settings;
 pub mod summary;
+pub mod tree_node;
 
 pub use pool::{DbPool, init};
 pub use sqlx::SqlitePool;

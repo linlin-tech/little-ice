@@ -39,6 +39,7 @@ impl AiClient {
             model: "deepseek-chat",
             messages,
             stream: true,
+            max_tokens: 4096,
         };
 
         let resp = self
@@ -107,6 +108,7 @@ impl AiClient {
             model: "deepseek-chat",
             messages,
             stream: false,
+            max_tokens: 4096,
         };
 
         let resp = self
@@ -143,6 +145,9 @@ struct ChatRequest<'a> {
     model: &'static str,
     messages: &'a [ChatMessage],
     stream: bool,
+    /// 生成 token 上限，避免无限生成 / 控制成本。
+    /// DeepSeek deepseek-chat 模型上限 8192，此处取 4096 兼顾长度与稳定性。
+    max_tokens: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

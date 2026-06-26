@@ -28,6 +28,8 @@ import type {
   Role,
   SendMessageResult,
   Settings,
+  TreeNode,
+  TreeNodeWithChildren,
 } from "@/types/models";
 
 // =============================================================
@@ -203,6 +205,63 @@ function getRoleByChatId(chatId: string): Promise<Role> {
 }
 
 // =============================================================
+// TreeNode（思维树图）
+// =============================================================
+
+/** `create_tree_node({ title, parentId, roleId }) -> TreeNode` */
+function createTreeNode(
+  title: string,
+  parentId: string | null,
+  roleId: string | null,
+): Promise<TreeNode> {
+  return invoke<TreeNode>("create_tree_node", { title, parentId, roleId });
+}
+
+/** `list_tree_roots({}) -> TreeNodeWithChildren[]` */
+function listTreeRoots(): Promise<TreeNodeWithChildren[]> {
+  return invoke<TreeNodeWithChildren[]>("list_tree_roots");
+}
+
+/** `list_tree_children({ parentId }) -> TreeNodeWithChildren[]` */
+function listTreeChildren(parentId: string): Promise<TreeNodeWithChildren[]> {
+  return invoke<TreeNodeWithChildren[]>("list_tree_children", { parentId });
+}
+
+/** `list_all_tree_nodes({}) -> TreeNodeWithChildren[]` */
+function listAllTreeNodes(): Promise<TreeNodeWithChildren[]> {
+  return invoke<TreeNodeWithChildren[]>("list_all_tree_nodes");
+}
+
+/** `get_tree_node({ id }) -> TreeNodeWithChildren` */
+function getTreeNode(id: string): Promise<TreeNodeWithChildren> {
+  return invoke<TreeNodeWithChildren>("get_tree_node", { id });
+}
+
+/** `rename_tree_node({ id, title }) -> TreeNode` */
+function renameTreeNode(id: string, title: string): Promise<TreeNode> {
+  return invoke<TreeNode>("rename_tree_node", { id, title });
+}
+
+/** `set_tree_node_role({ id, roleId }) -> TreeNode` */
+function setTreeNodeRole(id: string, roleId: string): Promise<TreeNode> {
+  return invoke<TreeNode>("set_tree_node_role", { id, roleId });
+}
+
+/** `delete_tree_node({ id }) -> void`（递归删除子树） */
+function deleteTreeNode(id: string): Promise<void> {
+  return invoke<void>("delete_tree_node", { id });
+}
+
+/** `move_tree_node({ id, newParentId, newOrder }) -> TreeNode` */
+function moveTreeNode(
+  id: string,
+  newParentId: string | null,
+  newOrder: number,
+): Promise<TreeNode> {
+  return invoke<TreeNode>("move_tree_node", { id, newParentId, newOrder });
+}
+
+// =============================================================
 // Settings（§4.5）
 // =============================================================
 
@@ -245,6 +304,16 @@ export const tauri = {
   updateRole,
   deleteRole,
   getRoleByChatId,
+  // TreeNode
+  createTreeNode,
+  listTreeRoots,
+  listTreeChildren,
+  listAllTreeNodes,
+  getTreeNode,
+  renameTreeNode,
+  setTreeNodeRole,
+  deleteTreeNode,
+  moveTreeNode,
   // Settings
   getSettings,
   setApiKey,

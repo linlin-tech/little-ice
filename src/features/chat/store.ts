@@ -106,7 +106,7 @@ interface ChatState {
   deleteChat: (id: Id) => Promise<void>;
   renameChat: (id: Id, title: string) => Promise<void>;
   setChatRole: (id: Id, roleId: Id) => Promise<void>;
-  selectChat: (id: Id) => Promise<void>;
+  selectChat: (id: Id | null) => Promise<void>;
 
   sendMessage: (content: string) => Promise<void>;
   stopGeneration: () => Promise<void>;

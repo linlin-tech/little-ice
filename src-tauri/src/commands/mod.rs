@@ -11,3 +11,4 @@ pub mod favorite;
 pub mod message;
 pub mod role;
 pub mod settings;
+pub mod tree_node;

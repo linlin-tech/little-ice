@@ -19,6 +19,7 @@ import { FeedbackToastProvider } from "@/components/common/FeedbackToast";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { useSettingsStore } from "@/features/settings/store";
 import { useRoleStore } from "@/features/role/store";
+import { useTreeViewStore } from "@/features/tree/store";
 import { useAppStore } from "@/stores/appStore";
 
 function App(): React.JSX.Element {
@@ -46,6 +47,15 @@ function App(): React.JSX.Element {
       void loadRoles();
     }
   }, [roleStatus, loadRoles]);
+
+  // 启动：加载思维树图节点（ChatList 用 rootNodeIds 过滤根节点）
+  const treeStatus = useTreeViewStore((s) => s.status);
+  const loadAllNodes = useTreeViewStore((s) => s.loadAllNodes);
+  useEffect(() => {
+    if (treeStatus === "empty") {
+      void loadAllNodes();
+    }
+  }, [treeStatus, loadAllNodes]);
 
   // §7.5 启动引导：未配 API Key → 跳 settings
   useEffect(() => {

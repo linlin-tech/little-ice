@@ -24,7 +24,7 @@ use std::path::PathBuf;
 
 use little_ice_lib::commands::message::SendMessageResult;
 use little_ice_lib::db::favorite::FavoritePatch;
-use little_ice_lib::models::{Chat, Favorite, Message, MessageRole, Role, Settings};
+use little_ice_lib::models::{Chat, Favorite, Message, MessageRole, Role, Settings, TreeNode, TreeNodeWithChildren};
 
 use specta::Types;
 use specta_serde::Format;
@@ -52,7 +52,9 @@ fn main() {
         .register::<Settings>()
         // 命令相关 DTO
         .register::<SendMessageResult>()
-        .register::<FavoritePatch>();
+        .register::<FavoritePatch>()
+        .register::<TreeNode>()
+        .register::<TreeNodeWithChildren>();
 
     // 输出到文件
     let out = output_path();

@@ -123,4 +123,6 @@ export type {
   Role,
   SendMessageResult,
   Settings,
+  TreeNode,
+  TreeNodeWithChildren,
 } from "./generated";

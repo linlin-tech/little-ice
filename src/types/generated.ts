@@ -58,3 +58,36 @@ export type Settings = {
 	/**  由 `deepseek_api_key` 非空派生，前端便捷字段 */
 	hasApiKey: boolean,
 };
+
+/**
+ *  TreeNode（思维树图节点，对应 tree_nodes 表）
+ * 
+ *  与 `Chat` 通过相同 `id` 共存：
+ *  - `tree_nodes.id` == `chats.id`（保持 `messages.chat_id` 关联正常）
+ *  - `parent_id = NULL` 表示根节点（对应原 chats 表中的对话）
+ *  - `role_id` 不可为空，默认绑定「默认助手」
+ */
+export type TreeNode = {
+	id: string,
+	title: string,
+	/**  父节点 id；`None` 表示根节点 */
+	parentId: string | null,
+	/**  同级排序序号 */
+	order: number,
+	roleId: string,
+	createdAt: number,
+	updatedAt: number,
+};
+
+/**  带子节点数的 TreeNode（用于前端展示「N 个子节点」） */
+export type TreeNodeWithChildren = {
+	id: string,
+	title: string,
+	parentId: string | null,
+	order: number,
+	roleId: string,
+	createdAt: number,
+	updatedAt: number,
+	/**  子节点数量（COUNT 子查询得到） */
+	childCount: number,
+};

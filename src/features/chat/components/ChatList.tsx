@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { MessageSquare } from "lucide-react";
 
 import { useChatStore } from "@/features/chat/store";
+import { useTreeViewStore } from "@/features/tree/store";
 
 import { ChatItem } from "./ChatItem";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -19,6 +20,12 @@ export function ChatList(): React.JSX.Element {
   const chats = useChatStore((s) => s.chats);
   const status = useChatStore((s) => s.status);
   const loadChats = useChatStore((s) => s.loadChats);
+
+  // 只显示根节点（tree_nodes.parent_id IS NULL）。
+  // tree_nodes 与 chats 共享 id，rootNodeIds 来自 treeViewStore。
+  const rootNodeIds = useTreeViewStore((s) => s.rootNodeIds);
+  const rootSet = new Set(rootNodeIds);
+  const rootChats = chats.filter((c) => rootSet.has(c.id));
 
   useEffect(() => {
     if (status === "empty") {
@@ -40,7 +47,7 @@ export function ChatList(): React.JSX.Element {
     );
   }
 
-  if (chats.length === 0) {
+  if (rootChats.length === 0) {
     // §18.2 Chat（无对话）空态
     return (
       <EmptyState
@@ -53,7 +60,7 @@ export function ChatList(): React.JSX.Element {
 
   return (
     <ul className="flex flex-col gap-1 py-1 list-none p-0 m-0">
-      {chats.map((c) => (
+      {rootChats.map((c) => (
         <ChatItem key={c.id} chat={c} />
       ))}
     </ul>

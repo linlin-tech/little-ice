@@ -9,6 +9,7 @@ mod role;
 mod settings;
 mod summary;
 mod timestamp;
+mod tree_node;
 
 pub use chat::Chat;
 pub use favorite::Favorite;
@@ -17,3 +18,4 @@ pub use role::Role;
 pub use settings::Settings;
 pub use summary::{ChatSummary, SummaryContext};
 pub use timestamp::UnixMs;
+pub use tree_node::{TreeNode, TreeNodeWithChildren};

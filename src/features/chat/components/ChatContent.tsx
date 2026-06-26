@@ -14,7 +14,6 @@ import { useEffect } from "react";
 import { useChatStore } from "@/features/chat/store";
 import { bindChatStreamEvents } from "@/features/chat/store";
 
-import { ChatHeader } from "./ChatHeader";
 import { ChatInput } from "./ChatInput";
 import { MessageList } from "./MessageList";
 
@@ -39,7 +38,6 @@ export function ChatContent(): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col">
-      <ChatHeader />
       {/* flex-1 + overflow-y-auto 必须配 min-h-0才能正确收缩滚动
           （flex 子项默认 min-height: auto 会撑爆容器导致滚动失效）。
           scroll-area 工具类（globals.css）使滚动条默认隐藏，hover 才显示 6px 细条。 */}

@@ -18,17 +18,23 @@ import { create } from "zustand";
 
 import type { Id, ViewMode } from "@/types/models";
 
+/** Chat 视图下的子视图模式：对话 / 思维树图 */
+export type TreeViewMode = "chat" | "tree";
+
 interface AppState {
   view: ViewMode;
   selectedChatId: Id | null;
   selectedFavoriteId: Id | null;
   sidebarCollapsed: boolean;
+  /** Chat 视图下的子视图：对话 / 思维树图 */
+  treeViewMode: TreeViewMode;
 
   setView: (v: ViewMode) => void;
   selectChat: (id: Id | null) => void;
   selectFavorite: (id: Id | null) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  setTreeViewMode: (mode: TreeViewMode) => void;
 }
 
 export const useAppStore = create<AppState>()((set) => ({
@@ -36,6 +42,7 @@ export const useAppStore = create<AppState>()((set) => ({
   selectedChatId: null,
   selectedFavoriteId: null,
   sidebarCollapsed: false,
+  treeViewMode: "chat",
 
   setView: (v) => set({ view: v }),
   selectChat: (id) => set({ selectedChatId: id }),
@@ -43,4 +50,5 @@ export const useAppStore = create<AppState>()((set) => ({
   toggleSidebar: () =>
     set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  setTreeViewMode: (mode) => set({ treeViewMode: mode }),
 }));
