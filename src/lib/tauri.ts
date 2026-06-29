@@ -24,7 +24,9 @@ import type {
   Chat,
   Favorite,
   FavoritePatch,
+  Group,
   Message,
+  ResourceType,
   Role,
   SendMessageResult,
   Settings,
@@ -108,6 +110,47 @@ function deleteMessage(chatId: string, assistantId: string): Promise<void> {
 /** `stop_generation({ chatId }) -> void` */
 function stopGeneration(chatId: string): Promise<void> {
   return invoke<void>("stop_generation", { chatId });
+}
+
+// =============================================================
+// Group（分组管理）
+// =============================================================
+
+/** `create_group({ resourceType, name }) -> Group` */
+function createGroup(resourceType: ResourceType, name: string): Promise<Group> {
+  return invoke<Group>("create_group", { resourceType, name });
+}
+
+/** `list_groups({ resourceType }) -> Group[]` */
+function listGroups(resourceType: ResourceType): Promise<Group[]> {
+  return invoke<Group[]>("list_groups", { resourceType });
+}
+
+/** `rename_group({ id, name }) -> Group` */
+function renameGroup(id: string, name: string): Promise<Group> {
+  return invoke<Group>("rename_group", { id, name });
+}
+
+/** `delete_group({ id }) -> void` */
+function deleteGroup(id: string): Promise<void> {
+  return invoke<void>("delete_group", { id });
+}
+
+/** `move_item_to_group({ resourceType, itemId, groupId }) -> void` */
+function moveItemToGroup(
+  resourceType: ResourceType,
+  itemId: string,
+  groupId: string,
+): Promise<void> {
+  return invoke<void>("move_item_to_group", { resourceType, itemId, groupId });
+}
+
+/** `move_item_out_of_group({ resourceType, itemId }) -> void` */
+function moveItemOutOfGroup(
+  resourceType: ResourceType,
+  itemId: string,
+): Promise<void> {
+  return invoke<void>("move_item_out_of_group", { resourceType, itemId });
 }
 
 // =============================================================
@@ -289,6 +332,13 @@ export const tauri = {
   deleteMessage,
   // AI
   stopGeneration,
+  // Group
+  createGroup,
+  listGroups,
+  renameGroup,
+  deleteGroup,
+  moveItemToGroup,
+  moveItemOutOfGroup,
   // Favorite
   createFavorite,
   listFavorites,

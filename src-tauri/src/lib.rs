@@ -71,6 +71,13 @@ pub fn run() {
             crate::commands::favorite::update_favorite,
             crate::commands::favorite::delete_favorite,
             crate::commands::favorite::count_favorites_by_chat,
+            // ===== Group（分组管理）=====
+            crate::commands::group::create_group,
+            crate::commands::group::list_groups,
+            crate::commands::group::rename_group,
+            crate::commands::group::delete_group,
+            crate::commands::group::move_item_to_group,
+            crate::commands::group::move_item_out_of_group,
             // ===== Role（§4.x）=====
             crate::commands::role::create_role,
             crate::commands::role::list_roles,

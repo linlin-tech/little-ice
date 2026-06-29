@@ -1,7 +1,7 @@
 /**
  * ChatList（§8.2 + §13）
  *
- * 列表容器：调 `chatStore.loadChats()` 拉数据，渲染 `<ChatItem />`。
+ * 列表容器：调 `chatStore.loadChats()` 拉数据，按分组渲染 `<ChatItem />`。
  * 顶部 sticky loading 提示；空状态用 `<EmptyState />`。
  *
  * 集成位置：`ListPanel`（当 `appStore.view === 'chat'` 时挂载）。
@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { MessageSquare } from "lucide-react";
 
 import { useChatStore } from "@/features/chat/store";
+import { GroupedList } from "@/features/group/components/GroupedList";
 import { useTreeViewStore } from "@/features/tree/store";
 
 import { ChatItem } from "./ChatItem";
@@ -47,22 +48,19 @@ export function ChatList(): React.JSX.Element {
     );
   }
 
-  if (rootChats.length === 0) {
-    // §18.2 Chat（无对话）空态
-    return (
-      <EmptyState
-        icon={MessageSquare}
-        title="开始你的第一次对话"
-        subtitle="在下方输入框输入内容，按 Enter 发送"
-      />
-    );
-  }
-
   return (
-    <ul className="flex flex-col gap-1 py-1 list-none p-0 m-0">
-      {rootChats.map((c) => (
-        <ChatItem key={c.id} chat={c} />
-      ))}
-    </ul>
+    <GroupedList
+      resourceType="chat"
+      items={rootChats}
+      renderItem={(chat) => <ChatItem key={chat.id} chat={chat} />}
+      emptyState={
+        <EmptyState
+          icon={MessageSquare}
+          title="开始你的第一次对话"
+          subtitle="在下方输入框输入内容，按 Enter 发送"
+        />
+      }
+      resourceLabel="对话"
+    />
   );
 }

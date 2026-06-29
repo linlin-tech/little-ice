@@ -58,7 +58,7 @@ interface FavoriteState {
     sourceChatId: Id | null,
     sourceMessageId?: Id | null,
   ) => Promise<Favorite | null>;
-  selectFavorite: (id: Id) => Promise<void>;
+  selectFavorite: (id: Id | null) => Promise<void>;
   /** V5.3 新增：列表 hover 编辑 / 详情页 Enter & Blur 都走这个 */
   renameFavorite: (id: Id, title: string) => Promise<void>;
   /** 内容变化：置 isDirty = true，等 10s 轮询或 manualSave 触发 */

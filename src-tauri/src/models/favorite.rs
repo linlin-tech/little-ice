@@ -14,6 +14,8 @@ pub struct Favorite {
     pub source_chat_id: Option<String>,
     /// 来源 Message id；手动创建时为 None
     pub source_message_id: Option<String>,
+    /// 所属分组 id；NULL 表示未分组
+    pub group_id: Option<String>,
     pub created_at: UnixMs,
     pub updated_at: UnixMs,
 }

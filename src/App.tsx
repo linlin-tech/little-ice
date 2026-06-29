@@ -17,6 +17,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { CreateFavoriteProvider } from "@/features/favorite/components/CreateFavoriteDialog";
 import { FeedbackToastProvider } from "@/components/common/FeedbackToast";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { PromptDialog } from "@/components/common/PromptDialog";
+import { GroupPickerDialog } from "@/components/common/GroupPickerDialog";
 import { useSettingsStore } from "@/features/settings/store";
 import { useRoleStore } from "@/features/role/store";
 import { useTreeViewStore } from "@/features/tree/store";
@@ -69,6 +71,8 @@ function App(): React.JSX.Element {
       <CreateFavoriteProvider>
         <AppShell />
         <ConfirmDialog />
+        <PromptDialog />
+        <GroupPickerDialog />
       </CreateFavoriteProvider>
     </FeedbackToastProvider>
   );

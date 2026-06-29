@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Little Ice · 交互原型</title>
+  <!-- Font Awesome 6 (free) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: #f5f7fb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* 主容器 —— 模拟桌面窗口 */
+    .app {
+      width: 480px;
+      max-width: 100%;
+      background: #ffffff;
+      border-radius: 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 720px;
+      transition: all 0.2s ease;
+    }
+
+    /* 顶部 header */
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 8px 22px;
+      min-height: 52px;
+    }
+
+    .brand {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: #1a1a1a;
+    }
+
+    /* 列表区域 (滚动) */
+    .list-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 18px 18px 18px;
+      scroll-behavior: smooth;
+      border-top: 1px solid #f0f2f5;
+    }
+
+    .list-area::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .list-area::-webkit-scrollbar-thumb {
+      background: #d0d5dd;
+      border-radius: 20px;
+    }
+
+    /* ----- 分组/条目混合结构 ----- */
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 12px;
+      margin: 10px 0 2px 0;
+      background: rgba(124, 199, 255, 0.08);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.12s;
+      user-select: none;
+    }
+
+    .group-header:hover {
+      background: rgba(124, 199, 255, 0.15);
+    }
+
+    .group-header .arrow {
+      font-size: 13px;
+      width: 18px;
+      color: #5f6b7a;
+      transition: transform 0.15s;
+    }
+
+    .group-header .arrow.collapsed {
+      transform: rotate(-90deg);
+    }
+
+    .group-header .folder-icon {
+      color: #2563EB;
+      font-size: 16px;
+      width: 22px;
+    }
+
+    .group-header .group-name {
+      font-weight: 540;
+      color: #1e293b;
+      font-size: 15px;
+      flex: 1;
+    }
+
+    .group-header .group-count {
+      font-size: 13px;
+      color: #7c8ba0;
+      background: #eef2f6;
+      padding: 0 10px;
+      border-radius: 40px;
+      margin-right: 8px;
+    }
+
+    .group-header .more-btn {
+      background: none;
+      border: none;
+      font-size: 16px;
+      color: #8b9aad;
+      cursor: pointer;
+      padding: 0 4px;
+      border-radius: 30px;
+    }
+
+    .group-header .more-btn:hover {
+      background: rgba(0,0,0,0.04);
+      color: #1e293b;
+    }
+
+    /* 分组内部条目容器 (展开/折叠) */
+    .group-items {
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s ease;
+      max-height: 800px; /* 足够显示所有条目 */
+      opacity: 1;
+    }
+
+    .group-items.collapsed {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* 未分组区域头 */
+    .ungrouped-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px 4px 12px;
+      font-size: 14px;
+      font-weight: 490;
+      color: #64748b;
+      letter-spacing: 0.2px;
+    }
+
+    .ungrouped-header i {
+      margin-right: 8px;
+      color: #94a3b8;
+    }
+
+    /* 条目卡片通用 */
+    .item-card {
+      display: flex;
+      align-items: center;
+      padding: 12px 14px;
+      margin: 2px 0;
+      border-radius: 16px;
+      transition: background 0.1s;
+      cursor: default;
+      background: #ffffff;
+    }
+
+    .item-card:hover {
+      background: #f8faff;
+    }
+
+    .item-card .item-icon {
+      width: 32px;
+      height: 32px;
+      background: #eef3fc;
+      border-radius: 40%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 14px;
+      color: #2563EB;
+      font-size: 16px;
+    }
+
+    .item-card .item-content {
+      flex: 1;
+    }
+
+    .item-card .item-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: #0b1a2a;
+    }
+
+    .item-card .item-sub {
+      font-size: 13px;
+      color: #7f8fa4;
+      margin-top: 2px;
+    }
+
+    .item-card .item-action {
+      color: #7f8fa4;
+      font-size: 15px;
+      padding: 0 6px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-radius: 30px;
+    }
+
+    .item-card .item-action:hover {
+      background: #eff2f6;
+      color: #2563EB;
+    }
+
+    /* 底部新建分组按钮 */
+    .new-group-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 0 6px 0;
+      margin-top: 12px;
+      color: #2563EB;
+      font-weight: 480;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 30px;
+      transition: background 0.1s;
+      width: fit-content;
+      padding: 10px 20px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .new-group-btn:hover {
+      background: #eef4fe;
+    }
+
+    /* ----- 底部 Tab Bar ----- */
+    .bottom-tab-bar {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 10px 16px;
+      background: #ffffff;
+      border-top: 1px solid #edf1f5;
+      min-height: 58px;
+      transition: all 0.2s;
+    }
+
+    .bottom-tab-bar.hidden {
+      max-height: 0;
+      min-height: 0;
+      padding: 0 16px;
+      border-top: none;
+      overflow: hidden;
+      opacity: 0;
+    }
+
+    .tab-item {
+      font-size: 24px;
+      color: #9aa6b5;
+      background: none;
+      border: none;
+      padding: 6px 18px;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: all 0.12s;
+      line-height: 1;
+    }
+
+    .tab-item.active {
+      color: #2563EB;
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    .tab-item:hover {
+      color: #2563EB;
+      background: #f0f4fe;
+    }
+
+    /* 设置面板占位 */
+    .settings-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #6d7b8c;
+    }
+
+    .settings-placeholder i {
+      font-size: 42px;
+      margin-bottom: 16px;
+      color: #2563EB;
+    }
+
+    /* 上下文菜单 (简易) */
+    .ctx-menu {
+      display: none;
+      position: fixed;
+      background: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      border-radius: 16px;
+      padding: 6px 0;
+      min-width: 180px;
+      z-index: 999;
+    }
+
+    .ctx-menu.show {
+      display: block;
+    }
+
+    .ctx-menu-item {
+      padding: 10px 18px;
+      font-size: 14px;
+      color: #1e293b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ctx-menu-item:hover {
+      background: #f0f4fe;
+    }
+
+    .ctx-menu-item i {
+      width: 20px;
+      color: #5f6b7a;
+    }
+
+    /* 右击选中效果辅助 */
+    .highlight-item {
+      background: #edf3ff !important;
+    }
+
+    /* 多选批量栏 (隐藏) */
+    .batch-bar {
+      display: none;
+    }
+
+    /* 分隔虚线 */
+    .divider-light {
+      margin: 6px 0;
+      border-bottom: 1px solid #f0f2f5;
+    }
+
+    /* 折叠箭头微调 */
+    .fa-chevron-down {
+      font-size: 12px;
+    }
+    
+    .list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 22px 10px 22px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.list-header-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.list-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.header-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f0f4fe;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 18px;
+  font-size: 12px;
+  color: #2563EB;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.header-btn:hover {
+  background: #dde9fe;
+}
+
+.header-btn i {
+  font-size: 13px;
+}
+    .app-header {
+  display: flex;
+  align-items: center;
+  padding: 18px 22px 4px 22px;  /* 减少底部padding */
+  min-height: 44px;
+}
+  </style>
+</head>
+<body>
+
+<!-- 上下文菜单 -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-menu-item" data-action="move-to-group"><i class="fas fa-folder-open"></i> 移动到分组</div>
+  <div class="ctx-menu-item" data-action="remove-from-group"><i class="fas fa-folder-minus"></i> 移出分组 (未分组)</div>
+  <div class="ctx-menu-item" data-action="rename"><i class="fas fa-pen"></i> 重命名</div>
+  <div class="ctx-menu-item" data-action="delete-group"><i class="fas fa-trash-can"></i> 删除分组</div>
+</div>
+
+
+<div class="app" id="app">
+
+<!-- 顶部 header (品牌行) -->
+<div class="app-header">
+  <span class="brand">小冰</span>
+  <!-- 这一行只保留品牌名，不再放按钮 -->
+</div>
+
+<!-- 新增：列表区域 header (第二行) -->
+<div class="list-header">
+  <span class="list-header-title">对话列表</span>
+  <div class="list-header-actions">
+    <button class="header-btn" id="newConversationBtn" title="新建对话">
+      <i class="fas fa-plus"></i>
+      新建对话
+    </button>
+    <button class="header-btn" id="newGroupBtn" title="新建分组">
+      <i class="far fa-folder"></i>
+      新建分组
+    </button>
+  </div>
+</div>
+
+  <!-- 动态列表区域 -->
+  <div class="list-area" id="listArea">
+    <!-- 由 js 动态渲染 -->
+  </div>
+
+  <!-- 底部 Tab Bar -->
+  <div class="bottom-tab-bar" id="bottomTabBar">
+    <button class="tab-item active" data-tab="conversation" title="对话"><i class="fas fa-comment-dots"></i></button>
+    <button class="tab-item" data-tab="favorites" title="收藏"><i class="fas fa-star"></i></button>
+    <button class="tab-item" data-tab="roles" title="模型角色"><i class="fas fa-robot"></i></button>
+    <button class="tab-item" data-tab="settings" title="设置"><i class="fas fa-gear"></i></button>
+  </div>
+
+</div>
+
+<script>
+  (function() {
+    // ---------- 初始数据 (与设计一致) ----------
+    // 当前激活的 tab
+    let currentTab = 'conversation';
+
+    // 分组数据：每个资源独立
+    const dataStore = {
+      conversation: {
+        groups: [
+          { id: 'g1', name: '工作', items: ['项目方案讨论', '周报模板', '客户需求分析'] },
+          { id: 'g2', name: '学习', items: ['React 教程', '设计模式笔记'] },
+          { id: 'g3', name: '兴趣', items: ['旅行攻略'] },
+        ],
+        ungrouped: ['AI 对话：闲聊', '产品灵感记录', '早餐推荐'],
+      },
+      favorites: {
+        groups: [
+          { id: 'g4', name: '技术', items: ['Rust 所有权解释', 'CSS 网格布局'] },
+          { id: 'g5', name: '设计', items: ['Apple 设计规范', '色彩理论'] },
+        ],
+        ungrouped: ['金句摘录', 'TODO 方法'],
+      },
+      roles: {
+        groups: [
+          { id: 'g6', name: '客服', items: ['客服助手 v1', '耐心姐姐'] },
+          { id: 'g7', name: '创作', items: ['诗人', '故事编剧'] },
+        ],
+        ungrouped: ['通用助手', '翻译官'],
+      }
+    };
+
+    // 展开状态 { groupId: boolean }
+    let expandState = {
+      g1: true, g2: true, g3: true,
+      g4: true, g5: true,
+      g6: true, g7: true,
+    };
+
+    // 当前选中的 item 或 group (用于右键)
+    let contextTarget = null;
+
+    // DOM 元素
+    const listArea = document.getElementById('listArea');
+    const ctxMenu = document.getElementById('ctxMenu');
+    const bottomBar = document.getElementById('bottomTabBar');
+    const tabButtons = document.querySelectorAll('.tab-item');
+
+    // ---------- 渲染核心 ----------
+    function renderList(tab) {
+      const store = dataStore[tab] || dataStore.conversation;
+      const groups = store.groups || [];
+      const ungrouped = store.ungrouped || [];
+
+      // 构建 html
+      let html = '';
+
+      // ----- 未分组区域 (如果存在) -----
+      if (ungrouped.length > 0) {
+        html += `<div class="ungrouped-header"><i class="far fa-circle"></i> 所有对话 (9)</div>`;
+        ungrouped.forEach((title, idx) => {
+          html += renderItemCard(title, 'ungrouped', null, idx);
+        });
+        html += `<div class="divider-light"></div>`;
+      }
+
+      // ----- 分组循环 (混合排放) -----
+      groups.forEach((g) => {
+        const isExpanded = expandState[g.id] !== false; // 默认展开
+        const itemCount = g.items.length;
+        const arrowClass = isExpanded ? '' : 'collapsed';
+
+        // 分组头部
+        html += `
+          <div class="group-header" data-group-id="${g.id}" data-group-name="${g.name}">
+            <span class="arrow ${arrowClass}"><i class="fas fa-chevron-down"></i></span>
+            <span class="folder-icon"><i class="far fa-folder"></i></span>
+            <span class="group-name">${g.name}</span>
+            <span class="group-count">${itemCount}</span>
+            <button class="more-btn" data-group-id="${g.id}" data-action="context"><i class="fas fa-ellipsis"></i></button>
+          </div>
+          <div class="group-items ${isExpanded ? '' : 'collapsed'}" data-group-id="${g.id}">
+        `;
+
+        // 分组内条目
+        g.items.forEach((title, idx) => {
+          html += renderItemCard(title, 'group', g.id, idx);
+        });
+
+        html += `</div>`; // 结束 group-items
+      });
+
+      listArea.innerHTML = html;
+
+      // 绑定
+      // 绑定事件 (在渲染完成后)
+      attachListEvents();
+    }
+
+    // 渲染单一条目卡片
+    function renderItemCard(title, type, groupId, idx) {
+      // 为每个条目生成唯一 data 属性，方便右键
+      const uniqueId = `item-${type}-${groupId || 'ung'}-${idx}`;
+      return `
+        <div class="item-card" data-item-id="${uniqueId}" data-title="${title}" data-group-id="${groupId || ''}" data-type="${type}">
+          <div class="item-icon"><i class="far fa-comment"></i></div>
+          <div class="item-content">
+            <div class="item-title">${title}</div>
+            <div class="item-sub">昨天 14:30 · AI</div>
+          </div>
+          <button class="item-action" data-item-ctx="${uniqueId}"><i class="fas fa-ellipsis-v"></i></button>
+        </div>
+      `;
+    }
+
+    // ---------- 事件绑定 ----------
+    function attachListEvents() {
+      // 1. 分组头部 展开/折叠 (点击箭头或头部本身)
+      document.querySelectorAll('.group-header').forEach(header => {
+        header.addEventListener('click', function(e) {
+          // 如果点击的是 more 按钮则不处理
+          if (e.target.closest('.more-btn')) return;
+          const groupId = this.dataset.groupId;
+          if (!groupId) return;
+          // 切换展开状态
+          expandState[groupId] = !(expandState[groupId] !== false);
+          // 重新渲染 (保持当前tab)
+          renderList(currentTab);
+        });
+      });
+
+      // 2. 分组 more 按钮 (右键菜单模拟)
+      document.querySelectorAll('.more-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const groupId = this.dataset.groupId;
+          const group = findGroupById(groupId);
+          if (!group) return;
+          // 存储目标
+          contextTarget = { type: 'group', groupId, groupName: group.name };
+          // 显示菜单 (在按钮下方)
+          const rect = this.getBoundingClientRect();
+          ctxMenu.style.left = (rect.left - 60) + 'px';
+          ctxMenu.style.top = (rect.bottom + 6) + 'px';
+          ctxMenu.classList.add('show');
+          // 根据是分组还是条目调整菜单项 (分组显示 重命名/删除; 条目显示 移动)
+          updateContextMenuForGroup();
+        });
+      });
+
+      // 3. 条目上的操作按钮 (右键触发菜单)
+      document.querySelectorAll('.item-action').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const card = this.closest('.item-card');
+          if (!card) return;
+          const title = card.dataset.title;
+          const groupId = card.dataset.groupId || null;
+          const type = card.dataset.type;
+          contextTarget = { type: 'item', title, groupId, element: card };
+          // 显示菜单
+          const rect = this.getBoundingClientRect();
+          ctxMenu.style.left = (rect.left - 80) + 'px';
+          ctxMenu.style.top = (rect.bottom + 4) + 'px';
+          ctxMenu.classList.add('show');
+          updateContextMenuForItem();
+        });
+      });
+
+      // 4. 整条目右键 (原生contextmenu)
+      document.querySelectorAll('.item-card').forEach(card => {
+        card.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          const title = this.dataset.title;
+          const groupId = this.dataset.groupId || null;
+          contextTarget = { type: 'item', title, groupId, element: this };
+          const rect = this.getBoundingClientRect();
+          ctxMenu.style.left = (e.clientX - 50) + 'px';
+          ctxMenu.style.top = (e.clientY - 10) + 'px';
+          ctxMenu.classList.add('show');
+          updateContextMenuForItem();
+        });
+      });
+
+      // 5. 新建分组
+      const newBtn = document.getElementById('newGroupBtn');
+      if (newBtn) {
+        newBtn.addEventListener('click', function() {
+          const name = prompt('请输入分组名称：', '新分组');
+          if (name && name.trim()) {
+            const store = dataStore[currentTab];
+            const newId = 'g' + Date.now();
+            store.groups.push({ id: newId, name: name.trim(), items: [] });
+            expandState[newId] = true;
+            renderList(currentTab);
+          }
+        });
+      }
+    }
+
+    // 辅助查找分组
+    function findGroupById(groupId) {
+      for (let tab of ['conversation', 'favorites', 'roles']) {
+        const found = dataStore[tab].groups.find(g => g.id === groupId);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    // 更新右键菜单 (针对分组显示重命名/删除)
+    function updateContextMenuForGroup() {
+      const menuItems = ctxMenu.querySelectorAll('.ctx-menu-item');
+      menuItems.forEach(item => {
+        const action = item.dataset.action;
+        if (action === 'rename' || action === 'delete-group') {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    // 更新右键菜单 (针对条目显示移动/移出)
+    function updateContextMenuForItem() {
+      const menuItems = ctxMenu.querySelectorAll('.ctx-menu-item');
+      menuItems.forEach(item => {
+        const action = item.dataset.action;
+        if (action === 'move-to-group' || action === 'remove-from-group') {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    // ---------- 右键菜单操作处理 ----------
+    ctxMenu.querySelectorAll('.ctx-menu-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const action = this.dataset.action;
+        if (!contextTarget) return;
+
+        if (contextTarget.type === 'group') {
+          // 分组操作
+          const groupId = contextTarget.groupId;
+          const group = findGroupById(groupId);
+          if (!group) return;
+          if (action === 'rename') {
+            const newName = prompt('重命名分组：', group.name);
+            if (newName && newName.trim()) {
+              group.name = newName.trim();
+              renderList(currentTab);
+            }
+          } else if (action === 'delete-group') {
+            if (confirm(`删除分组「${group.name}」？其条目将移回未分组。`)) {
+              // 将内部条目移到未分组
+              const store = dataStore[currentTab];
+              const idx = store.groups.findIndex(g => g.id === groupId);
+              if (idx !== -1) {
+                const removed = store.groups.splice(idx, 1)[0];
+                store.ungrouped.push(...removed.items);
+                // 清理 expandState
+                delete expandState[groupId];
+                renderList(currentTab);
+              }
+            }
+          }
+        } else if (contextTarget.type === 'item') {
+          const title = contextTarget.title;
+          const oldGroupId = contextTarget.groupId;
+          // 移动/移出
+          if (action === 'move-to-group') {
+            // 获取当前分组列表 (当前tab下)
+            const store = dataStore[currentTab];
+            const groupNames = store.groups.map(g => g.name).join(', ');
+            const targetName = prompt(`可移动到的分组：${groupNames}\n输入分组名称 (精确匹配):`, '');
+            if (targetName && targetName.trim()) {
+              const targetGroup = store.groups.find(g => g.name === targetName.trim());
+              if (targetGroup) {
+                // 从原位置移除
+                removeItemFromStore(title, oldGroupId);
+                // 添加到目标分组
+                targetGroup.items.push(title);
+                renderList(currentTab);
+              } else {
+                alert(`未找到分组「${targetName}」`);
+              }
+            }
+          } else if (action === 'remove-from-group') {
+            // 仅当 item 属于某个分组时
+            if (oldGroupId) {
+              if (confirm(`将「${title}」移出分组，变为未分组？`)) {
+                removeItemFromStore(title, oldGroupId);
+                // 加入未分组
+                const store = dataStore[currentTab];
+                store.ungrouped.push(title);
+                renderList(currentTab);
+              }
+            } else {
+              alert('该条目已在未分组中');
+            }
+          }
+        }
+
+        ctxMenu.classList.remove('show');
+        contextTarget = null;
+      });
+    });
+
+    // 从存储中移除指定条目 (根据标题和分组)
+    function removeItemFromStore(title, groupId) {
+      if (groupId) {
+        const group = findGroupById(groupId);
+        if (group) {
+          const idx = group.items.indexOf(title);
+          if (idx !== -1) group.items.splice(idx, 1);
+        }
+      } else {
+        // 从未分组移除
+        const store = dataStore[currentTab];
+        const idx = store.ungrouped.indexOf(title);
+        if (idx !== -1) store.ungrouped.splice(idx, 1);
+      }
+    }
+
+    // 点击空白关闭菜单
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.ctx-menu') && !e.target.closest('.more-btn') && !e.target.closest('.item-action')) {
+        ctxMenu.classList.remove('show');
+      }
+    });
+
+    // ---------- Tab 切换 ----------
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const tab = this.dataset.tab;
+        if (tab === 'settings') {
+          // 设置占位
+          listArea.innerHTML = `
+            <div class="settings-placeholder">
+              <i class="fas fa-wrench"></i>
+              <p style="font-size:18px; font-weight:450;">设置面板</p>
+              <p style="color:#7f8fa4; margin-top:8px;">主题 · 数据 · 关于</p>
+            </div>
+          `;
+          // 更新 active
+          tabButtons.forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+          currentTab = 'settings';
+          return;
+        }
+
+        currentTab = tab;
+        // 更新 active 样式
+        tabButtons.forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+
+        // 保证数据结构存在
+        if (!dataStore[tab]) {
+          dataStore[tab] = { groups: [], ungrouped: ['示例条目'] };
+        }
+        renderList(tab);
+      });
+    });
+
+    // ---------- 初始化加载 ----------
+    function init() {
+      // 确保 conversation 存在
+      renderList('conversation');
+    }
+
+    init();
+  })();
+</script>
+</body>
+</html>

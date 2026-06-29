@@ -1,17 +1,18 @@
 /**
  * RoleList（§8.x）
  *
- * Role 列表容器：调 `roleStore.loadRoles()` 拉数据，渲染 `<RoleItem />`。
+ * Role 列表容器：调 `roleStore.loadRoles()` 拉数据，按分组渲染 `<RoleItem />`。
  * 注意：Header（RoleToolbar）由 ListPanel 统一控制，本组件只负责列表区。
  */
 
 import { useEffect } from "react";
 import { UserCog } from "lucide-react";
 
+import { GroupedList } from "@/features/group/components/GroupedList";
 import { useRoleStore } from "@/features/role/store";
 
-import { RoleItem } from "./RoleItem";
 import { EmptyState } from "@/components/common/EmptyState";
+import { RoleItem } from "./RoleItem";
 
 export function RoleList(): React.JSX.Element {
   const roles = useRoleStore((s) => s.roles);
@@ -38,21 +39,19 @@ export function RoleList(): React.JSX.Element {
     );
   }
 
-  if (roles.length === 0) {
-    return (
-      <EmptyState
-        icon={UserCog}
-        title="还没有角色"
-        subtitle="点击右上角 + 新建角色"
-      />
-    );
-  }
-
   return (
-    <ul className="m-0 flex list-none flex-col gap-1 py-1">
-      {roles.map((r) => (
-        <RoleItem key={r.id} role={r} />
-      ))}
-    </ul>
+    <GroupedList
+      resourceType="role"
+      items={roles}
+      renderItem={(role) => <RoleItem key={role.id} role={role} />}
+      emptyState={
+        <EmptyState
+          icon={UserCog}
+          title="还没有角色"
+          subtitle="点击右上角 + 新建角色"
+        />
+      }
+      resourceLabel="角色"
+    />
   );
 }

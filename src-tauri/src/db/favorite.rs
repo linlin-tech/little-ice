@@ -30,18 +30,20 @@ pub async fn create(
         content,
         source_chat_id,
         source_message_id,
+        group_id: None,
         created_at: now,
         updated_at: now,
     };
     sqlx::query(
-        "INSERT INTO favorites (id, title, content, source_chat_id, source_message_id, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO favorites (id, title, content, source_chat_id, source_message_id, group_id, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&fav.id)
     .bind(&fav.title)
     .bind(&fav.content)
     .bind(fav.source_chat_id.as_deref())
     .bind(fav.source_message_id.as_deref())
+    .bind(fav.group_id.as_deref())
     .bind(fav.created_at)
     .bind(fav.updated_at)
     .execute(pool)
@@ -51,7 +53,7 @@ pub async fn create(
 
 pub async fn list_all(pool: &DbPool) -> AppResult<Vec<Favorite>> {
     let favs = sqlx::query_as::<_, Favorite>(
-        "SELECT id, title, content, source_chat_id, source_message_id, created_at, updated_at \
+        "SELECT id, title, content, source_chat_id, source_message_id, group_id, created_at, updated_at \
          FROM favorites \
          ORDER BY updated_at DESC",
     )
@@ -62,7 +64,7 @@ pub async fn list_all(pool: &DbPool) -> AppResult<Vec<Favorite>> {
 
 pub async fn get(pool: &DbPool, id: &str) -> AppResult<Favorite> {
     let fav = sqlx::query_as::<_, Favorite>(
-        "SELECT id, title, content, source_chat_id, source_message_id, created_at, updated_at \
+        "SELECT id, title, content, source_chat_id, source_message_id, group_id, created_at, updated_at \
          FROM favorites \
          WHERE id = ?",
     )
@@ -108,7 +110,7 @@ pub async fn find_by_message_id(
     source_message_id: &str,
 ) -> AppResult<Option<Favorite>> {
     let fav = sqlx::query_as::<_, Favorite>(
-        "SELECT id, title, content, source_chat_id, source_message_id, created_at, updated_at \
+        "SELECT id, title, content, source_chat_id, source_message_id, group_id, created_at, updated_at \
          FROM favorites \
          WHERE source_message_id = ? \
          LIMIT 1",

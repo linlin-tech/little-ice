@@ -24,7 +24,7 @@ use std::path::PathBuf;
 
 use little_ice_lib::commands::message::SendMessageResult;
 use little_ice_lib::db::favorite::FavoritePatch;
-use little_ice_lib::models::{Chat, Favorite, Message, MessageRole, Role, Settings, TreeNode, TreeNodeWithChildren};
+use little_ice_lib::models::{Chat, Favorite, Group, Message, MessageRole, ResourceType, Role, Settings, TreeNode, TreeNodeWithChildren};
 
 use specta::Types;
 use specta_serde::Format;
@@ -48,6 +48,8 @@ fn main() {
         .register::<Message>()
         .register::<MessageRole>()
         .register::<Favorite>()
+        .register::<Group>()
+        .register::<ResourceType>()
         .register::<Role>()
         .register::<Settings>()
         // 命令相关 DTO

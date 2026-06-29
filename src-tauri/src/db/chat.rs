@@ -13,15 +13,17 @@ pub async fn create(pool: &DbPool, title: String) -> AppResult<Chat> {
         id: uuid::Uuid::new_v7(uuid::Timestamp::now(uuid::NoContext)).to_string(),
         title,
         role_id: default_role.id,
+        group_id: None,
         created_at: now,
         updated_at: now,
     };
     sqlx::query(
-        "INSERT INTO chats (id, title, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO chats (id, title, role_id, group_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(&chat.id)
     .bind(&chat.title)
     .bind(&chat.role_id)
+    .bind(chat.group_id.as_deref())
     .bind(chat.created_at)
     .bind(chat.updated_at)
     .execute(pool)
@@ -31,7 +33,7 @@ pub async fn create(pool: &DbPool, title: String) -> AppResult<Chat> {
 
 pub async fn list_all(pool: &DbPool) -> AppResult<Vec<Chat>> {
     let chats = sqlx::query_as::<_, Chat>(
-        "SELECT id, title, role_id, created_at, updated_at FROM chats ORDER BY updated_at DESC",
+        "SELECT id, title, role_id, group_id, created_at, updated_at FROM chats ORDER BY updated_at DESC",
     )
     .fetch_all(pool)
     .await?;
@@ -40,7 +42,7 @@ pub async fn list_all(pool: &DbPool) -> AppResult<Vec<Chat>> {
 
 pub async fn get(pool: &DbPool, id: &str) -> AppResult<Chat> {
     let chat = sqlx::query_as::<_, Chat>(
-        "SELECT id, title, role_id, created_at, updated_at FROM chats WHERE id = ?",
+        "SELECT id, title, role_id, group_id, created_at, updated_at FROM chats WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(pool)

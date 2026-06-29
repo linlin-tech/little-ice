@@ -5,6 +5,7 @@
 
 pub mod chat;
 pub mod favorite;
+pub mod group;
 pub mod message;
 pub mod pool;
 pub mod role;

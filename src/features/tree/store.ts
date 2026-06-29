@@ -81,6 +81,7 @@ interface TreeViewState {
     roleId?: Id | null,
   ) => Promise<TreeNode | null>;
   renameNode: (nodeId: Id, title: string) => Promise<void>;
+  deleteNode: (nodeId: Id) => Promise<void>;
   setNodeRole: (nodeId: Id, roleId: Id) => Promise<void>;
   moveNode: (
     nodeId: Id,
@@ -375,16 +376,21 @@ export const useTreeViewStore = create<TreeViewState>()((set, get) => ({
   confirmDelete: async () => {
     const dialog = get().deleteDialog;
     if (!dialog) return;
+    await get().deleteNode(dialog.nodeId);
+    set({ deleteDialog: null });
+  },
+
+  deleteNode: async (nodeId) => {
     set({ deleting: true, error: null });
     try {
-      await tauri.deleteTreeNode(dialog.nodeId);
+      await tauri.deleteTreeNode(nodeId);
       const allNodes = new Map(get().allNodes);
-      const toRemove = collectDescendantsLocal(dialog.nodeId, allNodes);
+      const toRemove = collectDescendantsLocal(nodeId, allNodes);
       for (const id of toRemove) {
         allNodes.delete(id);
       }
       // 更新父节点 childCount
-      const deletedNode = get().allNodes.get(dialog.nodeId);
+      const deletedNode = get().allNodes.get(nodeId);
       if (deletedNode && deletedNode.parentId) {
         const parent = allNodes.get(deletedNode.parentId);
         if (parent) {
@@ -396,13 +402,8 @@ export const useTreeViewStore = create<TreeViewState>()((set, get) => ({
       }
       const rootNodeIds = computeRootNodeIds(allNodes);
       const newSelectedId =
-        get().selectedNodeId === dialog.nodeId ? null : get().selectedNodeId;
-      set({
-        allNodes,
-        rootNodeIds,
-        selectedNodeId: newSelectedId,
-        deleteDialog: null,
-      });
+        get().selectedNodeId === nodeId ? null : get().selectedNodeId;
+      set({ allNodes, rootNodeIds, selectedNodeId: newSelectedId });
       const { nodes, edges } = buildFlowData(
         allNodes,
         get().expandedNodeIds,
@@ -413,7 +414,7 @@ export const useTreeViewStore = create<TreeViewState>()((set, get) => ({
       // 同步 chatStore：刷新 chats 列表（删除的记录会消失）
       await useChatStore.getState().loadChats();
       // 若删除的是当前选中 chat，清空
-      if (useChatStore.getState().currentChatId === dialog.nodeId) {
+      if (useChatStore.getState().currentChatId === nodeId) {
         await useChatStore.getState().selectChat(null);
       }
     } catch (e) {

@@ -4,6 +4,8 @@ export type Chat = {
 	id: string,
 	title: string,
 	roleId: string,
+	/**  所属分组 id；NULL 表示未分组 */
+	groupId: string | null,
 	createdAt: number,
 	updatedAt: number,
 };
@@ -17,6 +19,8 @@ export type Favorite = {
 	sourceChatId: string | null,
 	/**  来源 Message id；手动创建时为 None */
 	sourceMessageId: string | null,
+	/**  所属分组 id；NULL 表示未分组 */
+	groupId: string | null,
 	createdAt: number,
 	updatedAt: number,
 };
@@ -25,6 +29,16 @@ export type Favorite = {
 export type FavoritePatch = {
 	title: string | null,
 	content: string | null,
+};
+
+/**  分组（对话 / 收藏 / 模型角色） */
+export type Group = {
+	id: string,
+	resourceType: ResourceType,
+	name: string,
+	sortOrder: number,
+	createdAt: number,
+	updatedAt: number,
 };
 
 /**  Message（前端 Message，对应 §3 数据模型） */
@@ -38,12 +52,17 @@ export type Message = {
 
 export type MessageRole = "user" | "assistant" | "system";
 
+/**  资源类型（分组管理所支持的三种资源） */
+export type ResourceType = "chat" | "favorite" | "role";
+
 /**  Role（前端 Role，对应 §3 数据模型） */
 export type Role = {
 	id: string,
 	name: string,
 	responsibility: string,
 	isBuiltin: boolean,
+	/**  所属分组 id；NULL 表示未分组 */
+	groupId: string | null,
 	createdAt: number,
 	updatedAt: number,
 };

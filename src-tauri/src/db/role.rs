@@ -16,17 +16,19 @@ pub async fn create(pool: &DbPool, name: String, responsibility: String) -> AppR
         name,
         responsibility,
         is_builtin: false,
+        group_id: None,
         created_at: now,
         updated_at: now,
     };
     sqlx::query(
-        "INSERT INTO roles (id, name, responsibility, is_builtin, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO roles (id, name, responsibility, is_builtin, group_id, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&role.id)
     .bind(&role.name)
     .bind(&role.responsibility)
     .bind(role.is_builtin)
+    .bind(role.group_id.as_deref())
     .bind(role.created_at)
     .bind(role.updated_at)
     .execute(pool)
@@ -36,7 +38,7 @@ pub async fn create(pool: &DbPool, name: String, responsibility: String) -> AppR
 
 pub async fn list_all(pool: &DbPool) -> AppResult<Vec<Role>> {
     let roles = sqlx::query_as::<_, Role>(
-        "SELECT id, name, responsibility, is_builtin, created_at, updated_at \
+        "SELECT id, name, responsibility, is_builtin, group_id, created_at, updated_at \
          FROM roles \
          ORDER BY is_builtin DESC, updated_at DESC",
     )
@@ -47,7 +49,7 @@ pub async fn list_all(pool: &DbPool) -> AppResult<Vec<Role>> {
 
 pub async fn get(pool: &DbPool, id: &str) -> AppResult<Role> {
     let role = sqlx::query_as::<_, Role>(
-        "SELECT id, name, responsibility, is_builtin, created_at, updated_at \
+        "SELECT id, name, responsibility, is_builtin, group_id, created_at, updated_at \
          FROM roles \
          WHERE id = ?",
     )
@@ -115,7 +117,7 @@ pub async fn delete(pool: &DbPool, id: &str) -> AppResult<()> {
 /// 根据 chat_id 查询当前绑定的 role
 pub async fn get_by_chat_id(pool: &DbPool, chat_id: &str) -> AppResult<Role> {
     let role = sqlx::query_as::<_, Role>(
-        "SELECT r.id, r.name, r.responsibility, r.is_builtin, r.created_at, r.updated_at \
+        "SELECT r.id, r.name, r.responsibility, r.is_builtin, r.group_id, r.created_at, r.updated_at \
          FROM roles r \
          JOIN chats c ON c.role_id = r.id \
          WHERE c.id = ?",

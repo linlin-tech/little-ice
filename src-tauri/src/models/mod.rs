@@ -4,6 +4,7 @@
 
 mod chat;
 mod favorite;
+mod group;
 mod message;
 mod role;
 mod settings;
@@ -13,6 +14,7 @@ mod tree_node;
 
 pub use chat::Chat;
 pub use favorite::Favorite;
+pub use group::{Group, ResourceType};
 pub use message::{Message, MessageRole};
 pub use role::Role;
 pub use settings::Settings;

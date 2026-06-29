@@ -97,12 +97,14 @@ pub async fn create(
     .await?;
 
     // 2. 同步插入 chats（保持 messages 外键完整；根节点和子节点都需要）
+    //    group_id 默认 NULL（未分组）
     sqlx::query(
-        "INSERT INTO chats (id, title, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO chats (id, title, role_id, group_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(&node.id)
     .bind(&node.title)
     .bind(&node.role_id)
+    .bind(None::<Option<String>>)
     .bind(node.created_at)
     .bind(node.updated_at)
     .execute(&mut *tx)

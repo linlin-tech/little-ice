@@ -7,9 +7,9 @@
  * - Hover：`bg-primary-hover` + `text-foreground`
  * - Active（当前页面）：`bg-primary-soft` + `text-primary-strong`
  *
- * 尺寸：
- * - 展开态：左右各 `px-3`，高度 `h-10`，圆角 `rounded-md`（10px）。
- * - 收起态（Sidebar 折叠时）：居中图标按钮，宽度自适应，高度 `h-10`。
+ * 形状对齐分组设计原型中的 Tab 按钮：
+ * - 展开态：左右 `px-3`，高度 `h-10`，圆角 `rounded-full`（胶囊形）
+ * - 收起态（Sidebar 折叠时）：圆形图标按钮，宽高 `h-10 w-10`
  *
  * ## svg + 文字对齐（项目级规则）
  *
@@ -59,9 +59,9 @@ export function NavItem({
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "h-10 rounded-md text-left transition-colors",
+        "h-10 text-left transition-colors",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        collapsed ? "w-10" : "w-full px-3",
+        collapsed ? "w-10 rounded-full" : "w-full rounded-full px-3",
         active
           ? "bg-primary-soft text-primary-strong"
           : "bg-transparent text-foreground hover:bg-primary-hover",
