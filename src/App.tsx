@@ -19,6 +19,7 @@ import { FeedbackToastProvider } from "@/components/common/FeedbackToast";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { PromptDialog } from "@/components/common/PromptDialog";
 import { GroupPickerDialog } from "@/components/common/GroupPickerDialog";
+import { useGroupCollapseStore } from "@/features/group/collapseStore";
 import { useSettingsStore } from "@/features/settings/store";
 import { useRoleStore } from "@/features/role/store";
 import { useTreeViewStore } from "@/features/tree/store";
@@ -34,6 +35,11 @@ function App(): React.JSX.Element {
   // 不能等到用户进 Model Role 模块才加载；启动时一次性拉好。
   const roleStatus = useRoleStore((s) => s.status);
   const loadRoles = useRoleStore((s) => s.loadRoles);
+
+  // 分组展开/收缩状态：启动时一次性从 plugin-store 加载到内存。
+  // 不阻塞渲染——load 是异步的，期间组件会用默认状态（全部展开）渲染。
+  const collapseStatus = useGroupCollapseStore((s) => s.status);
+  const loadCollapse = useGroupCollapseStore((s) => s.load);
 
   // 启动：拉 settings
   useEffect(() => {
@@ -58,6 +64,13 @@ function App(): React.JSX.Element {
       void loadAllNodes();
     }
   }, [treeStatus, loadAllNodes]);
+
+  // 启动：加载分组展开/收缩状态（plugin-store，UI 偏好）
+  useEffect(() => {
+    if (collapseStatus === "empty") {
+      void loadCollapse();
+    }
+  }, [collapseStatus, loadCollapse]);
 
   // §7.5 启动引导：未配 API Key → 跳 settings
   useEffect(() => {

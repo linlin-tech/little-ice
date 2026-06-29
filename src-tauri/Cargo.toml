@@ -51,3 +51,6 @@ specta = { version = "2.0.0-rc.25", features = ["derive", "collect", "function"]
 specta-typescript = "0.0.12"
 specta-serde = "0.0.12"
 tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
+
+# tauri-plugin-store：键值持久化（前端用，记录分组展开/收缩状态）
+tauri-plugin-store = "2"

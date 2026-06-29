@@ -28,6 +28,8 @@ pub fn run() {
     init_tracing();
 
     tauri::Builder::default()
+        // tauri-plugin-store：键值持久化（前端用，记录分组展开/收缩状态等 UI 偏好）
+        .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
             // 窗口打开时默认最大化
             if let Some(window) = app.get_webview_window("main") {
